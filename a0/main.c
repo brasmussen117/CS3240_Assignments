@@ -4,70 +4,217 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-struct line
+/* function prototype */
+int getMax(int, int);
+char *repeat(char *, int);
+
+/* struct for holding the contents of each line */
+typedef struct _line
 {
     char *first;
     char *second;
     char *third;
-};
+} LINE;
 
 int main(int argc, char const *argv[])
 {
-    // check for necessary arguments
-    if (argc < 2)
+    /* check for necessary arguments */
+    if (argc != 2)
     {
-        printf("Usage: ./a0 <file_name>");
+        printf("Usage: ./main <file_name>");
         return -1;
     }
     
-    char *buf = NULL;// buffer
+    char *buf = NULL; // buffer
 
-    struct line entries[100]; // setup var for taking lines, start with 100 lines
-    
-    // open the file given as argument in command line
-    FILE *input_file = fopen(argv[1], "r");
+    char *stringp = NULL; // copy of buf for tokenizing
+
+    LINE **entries = malloc(2 * sizeof(LINE*)); // var for taking lines
+
+    FILE *input_file = fopen(argv[1], "r"); // file handle; given as argument in command line
 
     size_t n = 0; // size of result
 
-    ssize_t result = getline(&buf, &n, input_file); // read the first line
+    ssize_t result = getline(&buf, &n, input_file); // result of getline
 
     if (result < 0) // check that the file is not empty
     {
+        free(buf);
         printf("Error: file emtpy or getline error");
         return 1;
     }
+    // free(buf);
 
-    // put the header into entries
-    char *stringp = strdup(buf);
-    entries[0].first = strsep(&stringp, " ");
-    entries[0].second = strsep(&stringp, " ");
-    entries[0].third = strsep(&stringp, "\n");
+    char *free_stringp = NULL;
 
-    printf("entries 0: %s | %s | %s\n", entries[0].first, entries[0].second, entries[0].third);
+    // entries[0] = malloc(sizeof(line_t)); // malloc the line at entries[0]
+    
+    // entries[0]->first = strsep(&stringp, " ");
+    // entries[0]->second = strsep(&stringp, " ");
+    // entries[0]->third = strsep(&stringp, "\n");
 
-    // primary loop
-    // while (result < 0)
-    // {
+    // free(free_stringp); // free last usage of stringp
+
+    /* set the max values */
+    int first_max_len = 0;
+    int second_max_len = 0;
+    int third_max_len = 0;
+
+    // printf("\nentries[0]: %s | %s | %s\n", entries[0].first, entries[0].second, entries[0].third); // debugging
+    // printf("max strlen >>> first: %d, second: %d, third: %d\n\n", first_max_len, second_max_len, third_max_len); // debugging
+
+    /* #Read */
+    int count = 0; // loop counter
+
+    while (result > 0)
+    {
+        stringp = strdup(buf); // duplicate the buf into stringp
+        free_stringp = stringp;
+		// printf("%d, ", count); // debugging
+
+        entries[count] = malloc(sizeof(LINE)); // allocate the new line
+
+        /* split the sections into entries */        
+        entries[count]->first = strsep(&stringp, " ");
+        entries[count]->second = strsep(&stringp, " ");
         
-    // }
+        if (count == 0)
+        {
+            entries[0]->third = strsep(&stringp, "\n");
+        } else {
+            stringp++; // advance past the beginning single quote
+            entries[count]->third = strsep(&stringp, "'");
+        }
+
+        /* check/get the max strlen */
+        first_max_len = getMax(strlen(entries[count]->first), first_max_len);
+        second_max_len = getMax(strlen(entries[count]->second), second_max_len);
+        third_max_len = getMax(strlen(entries[count]->third), third_max_len);
+
+        free(free_stringp); // free stringp for next loop
+
+        count++; // increment count
+
+        entries = realloc(entries, count * sizeof(LINE)); // realloc as necessary
+
+        result = getline(&buf, &n, input_file); // get the next line
+    }
     
-    // printf("buf: %s\n", buf); // debugging
+    /* # Print */
+
+    // printf("\nmax strlen >>> first: %d, second: %d, third: %d", first_max_len, second_max_len, third_max_len); // debugging
+    // printf("\nentries size: %d\n\n", count); // debugging
     
-    fclose(input_file);
-    // free();
-        // TODO: to be freed
-        // buf
-        // entries
-        // n
-        // result
-        // strings: stringp, 
+    int total_width = 2 + first_max_len + 3 + second_max_len + 3 + third_max_len + 2; // calc the total_width
+
+    /* setup the horizontal bar */
+    char *horizontal = "-"; // var for the bar
+    horizontal = repeat(horizontal, total_width); // creat bar of length total_width
+    horizontal = strcat(horizontal, "\n"); // new line
+    
+    char *first_padding;
+    char *second_padding;
+    char *third_padding;
+
+    for (size_t i = 0; i < count; i++) // primary print loop
+    {
+        if ((i == 0) | (i == 1)) // print the border before the first and before the second line
+        {
+            printf("%s", horizontal); // print the hyphen border line
+        }
+
+        first_padding = " "; // zero out the padding
+        second_padding = " "; // zero out the padding
+        third_padding = " "; // zero out the padding
+        
+        printf("| "); // left side border and space
+
+        printf("%s", entries[i]->first); // print first text
+
+        /* if first column padding needed, calc and print */
+        if (first_max_len != strlen(entries[i]->first)) // check if padding needed
+        {
+			first_padding = repeat(first_padding, first_max_len - strlen(entries[i]->first));
+            printf("%s", first_padding);
+            free(first_padding);
+        }
+
+        printf(" | "); // print the first/second divider
+
+        /* if second column padding needed, calc and print */
+        if (second_max_len != strlen(entries[i]->second)) // check if padding needed
+        {
+			second_padding = repeat(second_padding, second_max_len - strlen(entries[i]->second));
+            printf("%s", second_padding);
+            free(second_padding);
+        }
+
+        printf("%s", entries[i]->second); // print second text
+
+        printf(" | "); // print the second/third divider
+
+        printf("%s", entries[i]->third); // print third text
+
+        /* if third column padding needed, calc and print */
+        if (third_max_len != strlen(entries[i]->third)) // check if padding needed
+        {
+			third_padding = repeat(third_padding, third_max_len - strlen(entries[i]->third));
+            printf("%s", third_padding);
+	        free(third_padding);
+        }
+
+		printf(" |\n"); // end bar and new line
+
+        if (i == (count - 1)) // print the border after the final line
+        {
+            printf("%s", horizontal); // print the hyphen border line
+        }
+    }
+    
+   
+    fclose(input_file); // close the file
+    
+    // TODO: to be freed
+    for (size_t i = 0; i < count; i++) // loop to free each part of entries
+    {
+        free(entries[i]);
+    }
+    free(entries); // free array
+    
+    free(buf);
+    // free(stringp);
+	free(horizontal);
+	// free(first_padding);
+	// free(second_padding);
+	// free(third_padding);
 
     return 0;
 }
 
+/* check a new value against a previous max value, returns which is max */
+int getMax(int entry, int max){
+    return entry > max ? entry : max;
+}
+
+/* repeat a given string x times
+	found on stackoverflow: https://stackoverflow.com/questions/22599556/return-string-of-characters-repeated-x-times
+	author: https://stackoverflow.com/users/371974/scorpiozj
+ */
+char *repeat(char *s, int x)
+{
+    char *result = calloc(sizeof(s),x + 1);
+
+    while (x > 0) {
+        strcat(result, s);
+        x --;
+    }
+
+    return result;
+}
+
 /* Notes:
 
-## TODO: Primary loop for reading
+## Primary loop for reading
 1. loop thru file until readline returns end of file
 2. split each section of result into entries
     A. first two fields are space delimited
@@ -104,7 +251,7 @@ The program should compile with -std=gnu11, -Werror, and -Wall, all memory shoul
 
 * $ cat input1.txt
 
-#define octal description
+.#define octal description
 S_IRWXU 00700 'user (file owner) has read, write, and execute permission'
 S_IRUSR 00400 'user has read permission'
 S_IWUSR 00200 'user has write permission'
