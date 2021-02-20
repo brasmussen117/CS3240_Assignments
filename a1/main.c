@@ -107,7 +107,7 @@ int main(int argc, char const *argv[])
 
         _rarityStr = strncpy(_rarityStr, _end[ptrA], (ptrB - ptrA)); // copy _end from ptrA to ptrB into _rarity
 
-        _rarity = strToRar(_rarityStr); // TODO:
+        _rarity = strToRar(_rarityStr);
 
         if ( // check that rarity is valid
             _rarity == common |
@@ -145,15 +145,8 @@ int main(int argc, char const *argv[])
         result = getline(&buf, &n, input_file); // read the next line
     }
     
+    // TODO: free memory
     
-    
-    // if (strcmp(_rarityStr, rarityStringArray[0]))
-    // {
-    //     cards[0]->rarity = common
-    // }
-    
-    // cards[0]->rarity = rarity[_rarityInt]; // TODO: first match the input to the string value of the rarity, then input the associated enum into card
-
 	return 0;
 }
 
@@ -162,8 +155,13 @@ int main(int argc, char const *argv[])
     return -1 if not found
  */
 int checkDuplicateCard(int id, char *name, CARD **cards){
-    // TODO: everything
-    return -1;
+    // TODO: 
+    // * loop to compare input name with each name in cards
+    // * return 0 for no match
+    // * if match found then compare id
+        // * return -1 for new card lower than match
+        // * return 1 for new card higher than match
+    return 0;
 }
 
 int cardNameComparator(char *nameA, char *nameB){
