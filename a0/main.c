@@ -75,15 +75,15 @@ int main(int argc, char const *argv[])
         entries[count] = malloc(sizeof(LINE)); // allocate the new line
 
         /* split the sections into entries */        
-        entries[count]->first = strsep(&stringp, " ");
-        entries[count]->second = strsep(&stringp, " ");
+        entries[count]->first = strdup(strsep(&stringp, " "));
+        entries[count]->second = strdup(strsep(&stringp, " "));
         
         if (count == 0)
         {
-            entries[0]->third = strsep(&stringp, "\n");
+            entries[0]->third = strdup(strsep(&stringp, "\n"));
         } else {
             stringp++; // advance past the beginning single quote
-            entries[count]->third = strsep(&stringp, "'");
+            entries[count]->third = strdup(strsep(&stringp, "'"));
         }
 
         /* check/get the max strlen */
@@ -105,7 +105,14 @@ int main(int argc, char const *argv[])
     // printf("\nmax strlen >>> first: %d, second: %d, third: %d", first_max_len, second_max_len, third_max_len); // debugging
     // printf("\nentries size: %d\n\n", count); // debugging
     
-    int total_width = 2 + first_max_len + 3 + second_max_len + 3 + third_max_len + 2; // calc the total_width
+    int total_width =  // calc the total_width
+        2 // bar + spc
+        + first_max_len 
+        + 3 // spc + bar + spc
+        + second_max_len 
+        + 3 // spc + bar + spc
+        + third_max_len 
+        + 2; // spc + bar
 
     /* setup the horizontal bar */
     char *horizontal = "-"; // var for the bar
@@ -129,7 +136,7 @@ int main(int argc, char const *argv[])
         
         printf("| "); // left side border and space
 
-        printf("%s", entries[i]->first); // print first text
+        printf("%s", entries[i]->first); // print first field
 
         /* if first column padding needed, calc and print */
         if (first_max_len != strlen(entries[i]->first)) // check if padding needed
@@ -149,11 +156,11 @@ int main(int argc, char const *argv[])
             free(second_padding);
         }
 
-        printf("%s", entries[i]->second); // print second text
+        printf("%s", entries[i]->second); // print second field
 
         printf(" | "); // print the second/third divider
 
-        printf("%s", entries[i]->third); // print third text
+        printf("%s", entries[i]->third); // print third field
 
         /* if third column padding needed, calc and print */
         if (third_max_len != strlen(entries[i]->third)) // check if padding needed
@@ -177,12 +184,14 @@ int main(int argc, char const *argv[])
     // TODO: to be freed
     for (size_t i = 0; i < count; i++) // loop to free each part of entries
     {
+        free(entries[i]->first);
+        free(entries[i]->second);
+        free(entries[i]->third);
         free(entries[i]);
     }
     free(entries); // free array
     
     free(buf);
-    // free(stringp);
 	free(horizontal);
 	// free(first_padding);
 	// free(second_padding);
@@ -204,10 +213,14 @@ char *repeat(char *s, int x)
 {
     char *result = calloc(sizeof(s),x + 1);
 
-    while (x > 0) {
+    int i = x;
+
+    while (i > 0) {
         strcat(result, s);
-        x --;
+        i--;
     }
+
+    result[ sizeof(s) * (x + 1) - 1] = 0;
 
     return result;
 }

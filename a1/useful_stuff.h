@@ -4,6 +4,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+/* function to return the number of elements in an array of any type
+found on stackoverflow: https://stackoverflow.com/questions/9522760/find-the-number-of-strings-in-an-array-of-strings-in-c
+author: https://stackoverflow.com/users/888653/matt-liberty
+ */
+#define ARRAY_SIZE(x) ( sizeof(x) / sizeof((x)[0]) )
+
 /* check a new value against a previous max value, returns which is max */
 int getMax(int entry, int max){
     return entry > max ? entry : max;
@@ -22,6 +28,6 @@ char *repeat(char *s, int x)
         strcat(result, s);
         x--;
     }
-
+    free(s);
     return result;
 }
