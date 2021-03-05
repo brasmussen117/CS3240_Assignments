@@ -1,13 +1,18 @@
 #include "card.h"
 #include "useful_stuff.h"
 
-/* function prototype */
+/* function prototypea */
 int checkDuplicateCard(int, char *, CARD **, size_t);
 int cardNameComparator(char *, char *);
-CARD* cardBuilder(unsigned, char *, char *, unsigned, char *, char *, char *, RARITY);
+CARD *cardBuilder(unsigned, char *, char *, unsigned, char *, char *, char *, RARITY);
 RARITY strToRARITY(char *);
 void closeGap(CARD **, int, int);
-char* convNewlineChar(char *);
+char *convNewlineChar(char *);
+void printCards(CARD **, int);
+void freeCard(CARD *);
+void freeCards(CARD **, int);
+CARD *cardReader(char *);
+
 
 int main(int argc, char const *argv[])
 {
@@ -17,14 +22,16 @@ int main(int argc, char const *argv[])
         printf("\nUsage: ./parser <file_name>\n\n");
         return -1;
     }
-    
-    char *buf = NULL; // buffer
-    char *stringp = NULL; // pointer for strsep
-
-    CARD **cards = malloc(2 * sizeof(CARD*)); // var for taking lines
 
     FILE *input_file = fopen(argv[1], "r"); // open the file given as argument in command line
 
+    if (input_file == NULL) // check that fopen was sucessful
+    {
+        printf("Error: file not succesfully opened");
+        return -2;
+    }
+    
+    char *buf = NULL; // buffer
     size_t n = 0; // size of result
 
     ssize_t result = getline(&buf, &n, input_file); // read the first line
@@ -37,44 +44,117 @@ int main(int argc, char const *argv[])
 
     result = getline(&buf, &n, input_file); // read the second line
 
+    CARD **cards = malloc(2 * sizeof(CARD*)); // var for taking lines
+    CARD **free_cards = NULL; // pointer for cleaning memory in loop
+
+    /* ------------------------------------------------
+    # read loop vars
+     */
+    CARD *newCard = NULL;
     /* temp vars for working with fields before adding them to card */
-    unsigned _id = 0;
-    char* _name = NULL;
-    char* _cost;
-	unsigned _converted_cost = 0;
-	char* _type = NULL;
-	char* _text = NULL;
-	char* _stats = NULL;
-    char* _rarityStr = NULL;
-    RARITY _rarity;
+    // unsigned _id = 0;
+    // char *_name = NULL;
+    // char *_cost;
+	// unsigned _converted_cost = 0;
+	// char *_type = NULL;
+	// char *_text = NULL;
+	// char *_stats = NULL;
+    // RARITY _rarity;
+    // /*  */
+
+    // char *stringp = NULL; // pointer for strsep
+    // char *free_stringp = NULL; // pointer for cleaning memory in loop
+    // char *rarityStr = NULL; // take rarity as string for conversion
+    // char *end = NULL; // take the end of stringp for further parsing
 
     ssize_t dup = 0; // duplicate card flag
 
-    char* _end = NULL;
-    ssize_t offsetA = 0; // ptr for str separating
-    ssize_t offsetB = 0; // ptr for str separating
+    // ssize_t offsetA = 0; // ptr for str separating
+    // ssize_t offsetB = 0; // ptr for str separating
 
-    /* string ptrs for comparisons */
-    // char *dblQuote = malloc(sizeof(char)); dblQuote = "\""; // ptr to a double quote
-    // char *comma = malloc(sizeof(char)); comma = ","; // ptr to a comma
-        
     size_t count = 0; // main counter
+    /* ----------------------------------------------- */
 
     while (result > 0) // primary read/parse loop
     {
-        stringp = strdup(buf); // copy the buf for strsep
-        free(buf);
+    //     stringp = strdup(buf); // copy the buf for strsep
+    //     free_stringp = stringp;
+    //     free(buf);
 
-        _id = atoi(strsep(&stringp, ","));
-        stringp++; // advance past dblQuote
-        _name = strsep(&stringp, "\"");
+    //     _id = atoi(strsep(&stringp, ","));
+    //     stringp++; // advance past dblQuote
+    //     _name = strsep(&stringp, "\"");
+
+
+        
+    //     stringp += 2; // advance past comma/dblQuote
+    //     _cost = strsep(&stringp, "\"");
+    //     stringp++; // advance past the comma
+    //     _converted_cost = atoi(strsep(&stringp, ",")); // convert the string to int
+    //     stringp++; // advance past the dblQuote
+    //     _type = strsep(&stringp, "\"");
+    //     stringp += 2; // advance past the comma/dblQuote
+
+    //     end = strsep(&stringp, "\r"); // hold the end of the line
+
+    //     free(free_stringp); // free memory
+
+    //     offsetB = (strlen(end) - 1); offsetA = offsetB; // set ptrs to final dblQuote
+    //     while (*(end + offsetA) != ',') // march offsetA to the previous comma
+    //     {
+    //         offsetA--;
+    //     }
+
+    //     rarityStr = strndup((void *)(end + offsetA + 2), (offsetB - (offsetA + 2))); // copy end from offsetA to offsetB into _rarity
+    //     rarityStr[(offsetB - (offsetA + 2))] = 0; // null terminate
+
+    //     _rarity = strToRARITY(rarityStr);
+
+    //     offsetA--; offsetB = offsetA; // set ptrs before the comma
+
+    //     while (*(end + offsetA) != ',') // march offsetA to the next to last comma
+    //     {
+    //         offsetA--;
+    //     }
+
+    //     if (offsetA == offsetB) // check if offsetA moved
+    //     {
+    //         _stats = 0; // if offsetA did not move, field was blank (,,)
+    //     }
+    //     else // offsetA DID move, copy the str and terminate
+    //     {
+    //         _stats = strndup((void *)(end + offsetA + 2), (offsetB - (offsetA + 2))); // copy the stat field
+    //         _stats[((offsetB - offsetA) + 1)] = 0; // null terminate
+    //     }
+        
+    //     offsetA = offsetA - 1; // set offsetA before the comma
+
+    //     _text = strndup(end, offsetA);
+
+    //     _text = convNewlineChar(_text);
+
+    //     cards[count++] = cardBuilder(
+    //         _id,
+    //         _name,
+    //         _cost,
+    //         _converted_cost,
+    //         _type,
+    //         _text,
+    //         _stats,
+    //         _rarity
+    //     );
+
+        
+    // ****************************
+        newCard = cardReader(buf);
 
         /* check/handle duplicates */
-        dup = checkDuplicateCard(_id, _name, cards, count); // check for duplicate
+        dup = checkDuplicateCard(newCard->id, newCard->name, cards, count); // check for duplicate
         if (dup != -1) // if dup returns a match then handle it
         {
             if (dup == -2) // check if new entry is not superseding, skip this entry if not
             {
+                freeCard(newCard);
                 result = getline(&buf, &n, input_file); // read the next line
                 continue; // skip to next iteration
             } else // new entry IS superseding, dup has index of obs card
@@ -82,77 +162,182 @@ int main(int argc, char const *argv[])
                 closeGap(cards, dup, count); // close the gap to remove obs card
             }
         } // else no duplicate found, then proceed
-        
-        stringp += 2; // advance past comma/dblQuote
-        _cost = strsep(&stringp, "\"");
-        stringp++; // advance past the comma
-        _converted_cost = atoi(strsep(&stringp, ",")); // convert the string to int
-        stringp++; // advance past the dblQuote
-        _type = strsep(&stringp, "\"");
-        stringp += 2; // advance past the comma/dblQuote
 
-        _end = strsep(&stringp, "\r"); // hold the end of the line
+        cards[count++] = newCard;
 
-        offsetB = (strlen(_end) - 1); offsetA = offsetB; // set ptrs to final dblQuote
-        while (*(_end + offsetA) != ',') // march offsetA to the previous comma
+        free_cards = cards; // point free_cards to cards
+        cards = realloc(cards, sizeof(CARD *) * count); // realloc
+        if (free_cards != cards) // check if realloc returned new pointer, free if true
         {
-            offsetA--;
+            free(free_cards);
+            free_cards = NULL;
         }
-
-        _rarityStr = strncpy(_rarityStr, (void *)(_end + offsetA + 2), (offsetB - (offsetA + 2))); // copy _end from offsetA to offsetB into _rarity
-        _rarityStr[(offsetB - (offsetA + 2))] = 0; // null terminate string
-
-        _rarity = strToRARITY(_rarityStr);
-
-        offsetA--; offsetB = offsetA; // set ptrs before the comma
-
-        while (*(_end + offsetA) != ',') // march offsetA to the next to last comma
-        {
-            offsetA--;
-        }
-
-        if (offsetA == offsetB) // check if offsetA moved
-        {
-            _stats = 0; // if offsetA did not move, field was blank (,,)
-        }
-        else // offsetA DID move, copy the str and terminate
-        {
-            _stats = strncpy(_stats, (void *)(_end + offsetA + 2), (offsetB - (offsetA + 2))); // copy the stat field
-            _stats[((offsetB - offsetA) + 1)] = 0;
-        }
-        
-        offsetA = offsetA - 1; // set offsetA before the comma
-
-        _text = strncpy(_text, _end, offsetA);
-
-        _text = convNewlineChar(_text);
-
-        cards[count] = cardBuilder(
-            _id,
-            _name,
-            _cost,
-            _converted_cost,
-            _type,
-            _text,
-            _stats,
-            _rarity
-        );
 
         result = getline(&buf, &n, input_file); // read the next line
-    }
+    } // end read loop
 
-    if (fclose(input_file))
+
+
+    printCards(cards, count);
+
+    int fclose_success = fclose(input_file);
+    if (fclose_success != 0)
     {
         printf("Error: file not successfully closed\n");
+        return -2;
     }
     
-    // TODO: free memory
-
     // TODO: sort cards by name
     
-    // TODO: print cards
-
+    /* free memory */
+    freeCards(cards, count);
+    
 	return 0;
+}
+
+/* frees a CARD* and char* fields */
+void freeCard(CARD *cardtofree){
+    /* free the cards's char* fields */
+    free(cardtofree->name);
+    free(cardtofree->cost);
+    free(cardtofree->type);
+    free(cardtofree->text);
+    free(cardtofree->stats);
+    
+    free(cardtofree); // free the card
+}
+
+/* frees full CARD** array */
+void freeCards(CARD **cards, int count){
+    /* loop to free each of the cards */
+    for (size_t i = 0; i < count; i++)
+    {
+        freeCard(cards[i]);
+    }
+    free(cards); // free the full array
+}
+
+/* take buf line input, returns pointer to new card
+ */
+CARD *cardReader(char *buf){ // TODO:
+    unsigned int _id = 0;
+    char *_name = NULL;
+    char *_cost = NULL;
+	unsigned int _converted_cost = 0;
+	char *_type = NULL;
+	char *_text = NULL;
+	char *_stats = NULL;
+    RARITY _rarity;
+
+    char *stringp = NULL; // pointer for strsep
+    char *free_stringp = NULL; // pointer for cleaning memory in loop
+    char *rarityStr = NULL; // take rarity as string for conversion
+    char *end = NULL; // take the end of stringp for further parsing
+
+    ssize_t offsetA = 0; // ptr for str separating
+    ssize_t offsetB = 0; // ptr for str separating
+
+    /* ----------------------------------------------- */
+
+    stringp = strdup(buf); // copy the buf for strsep
+    free_stringp = stringp; // get the pointer for the beginning of stringp
+    free(buf); // free buf
+
+    _id = atoi(strsep(&stringp, ","));
+    stringp++; // advance past dblQuote
+    _name = strdup(strsep(&stringp, "\""));
+
+    /* check/handle duplicates */ // TODO: remove this back to be called from main
+    /* dup = checkDuplicateCard(_id, _name, cards, count); // check for duplicate
+    if (dup != -1) // if dup returns a match then handle it
+    {
+        if (dup == -2) // check if new entry is not superseding, skip this entry if not
+        {
+            return NULL;
+        } else // new entry IS superseding, dup has index of obs card
+        {
+            closeGap(cards, dup, count); // close the gap to remove obs card
+        }
+    } // else no duplicate found, then proceed */
+    
+    stringp++; // advance past comma
+    if (stringp[0] == ',') // check if next char is comma -> 
+    {
+        // cost field empty, pass
+    } else // cost field not empty
+    {
+        _cost = strdup(strsep(&stringp, "\""));
+    }
+    
+    stringp++; // advance past the comma
+    _converted_cost = atoi(strsep(&stringp, ",")); // convert the string to int
+    stringp++; // advance past the dblQuote
+    _type = strdup(strsep(&stringp, "\""));
+    stringp += 2; // advance past the comma/dblQuote
+
+    /* end of string reverse order parsing ------------------- */
+    end = strsep(&stringp, "\r"); // hold the end of the line
+
+    offsetB = (strlen(end) - 1); offsetA = offsetB; // set ptrs to final dblQuote
+    while (*(end + offsetA) != ',') // march offsetA to the previous comma
+    {
+        offsetA--;
+    }
+
+    rarityStr = strndup((void *)(end + offsetA + 2), (offsetB - (offsetA + 2))); // copy end from offsetA to offsetB into _rarity
+    rarityStr[(offsetB - (offsetA + 2))] = 0; // null terminate
+
+    _rarity = strToRARITY(rarityStr);
+
+    free(rarityStr);
+
+    offsetA--; offsetB = offsetA; // set ptrs before the comma
+
+    while (*(end + offsetA) != ',') // march offsetA to the next to last comma
+    {
+        offsetA--;
+    }
+
+    if (offsetA == offsetB) // check if offsetA moved
+    {
+        _stats = 0; // if offsetA did not move, field was blank (,,)
+    }
+    else // offsetA DID move, copy the str and terminate
+    {
+        _stats = strndup((void *)(end + offsetA + 2), (offsetB - (offsetA + 2))); // copy the stat field
+        _stats[((offsetB - offsetA) + 1)] = 0; // null terminate
+    }
+    
+    offsetA = offsetA - 1; // set offsetA before the comma
+
+    _text = strndup(end, offsetA);
+
+    /* ---------------------------------------------------- */
+
+    free(free_stringp); // free memory
+
+    _text = convNewlineChar(_text);
+
+    return cardBuilder(
+        _id,
+        _name,
+        _cost,
+        _converted_cost,
+        _type,
+        _text,
+        _stats,
+        _rarity
+    );
+
+    // free_cards = cards; // point free_cards to cards
+    // cards = realloc(cards, sizeof(CARD *) * count); // realloc
+    // if (free_cards != cards) // check if realloc returned new pointer, free if true
+    // {
+    //     free(free_cards);
+    //     free_cards = NULL;
+    // }
+    
+    // result = getline(&buf, &n, input_file); // read the next line
 }
 
 /* check new card against cards
@@ -162,22 +347,19 @@ int main(int argc, char const *argv[])
  */
 int checkDuplicateCard(int id, char *name, CARD **cards, size_t count){
 
-    int cmp = 0; // result of comparison
-
     for (size_t i = 0; i < count; i++) // loop through cards
     {
-        cmp = strcmp(name, cards[i]->name); // compare input name with cards[i]->name
-        if (cmp == 0) // if match found
+        if (strcmp(name, cards[i]->name) == 0) // compare input name with cards[i]->name
         {
-            if (id < cards[i]->id) // check if new id is obs
+            if (id <= cards[i]->id) // check if new id is obs
             {
                 return -2; // return obs flag
             }
             else // new card supersedes
             {
-                return cards[i]->id; // return index of obs card
+                return i; // return index of obs card
             }
-        }
+        } // no match found, continue looping
     }
     return -1; // no match was found in cards
 }
@@ -197,8 +379,8 @@ CARD* cardBuilder(unsigned id, char* name, char* cost, unsigned converted_cost, 
     
     CARD* result = malloc(sizeof(CARD)); // allocate space for one card
 
-    if ((id != 0) & // check that id is not blank
-        (!name) // check that name pointer is not null
+    if ((id != 0) && // check that id is not blank
+        (name) // check that name pointer is not null
     )
     {
         result->id = id;
@@ -225,13 +407,6 @@ CARD* cardBuilder(unsigned id, char* name, char* cost, unsigned converted_cost, 
 RARITY strToRARITY(char *rarityStr){
     if (rarityStr) // check if rarityStr is null
     {
-        char* rarityStringArray[] = {
-            "common",
-            "uncommon",
-            "rare",
-            "mythic"
-        };
-        
         // match the input to string of rarity, then put corresponding rarity into card
         for (size_t j = 0; j < ARRAY_SIZE(rarityStringArray); j++)
         {
@@ -267,32 +442,59 @@ void closeGap(CARD** cards, int indexToBeCut, int cardCount){
 char* convNewlineChar(char* _text){
     char *result = malloc(strlen(_text));
 
-    size_t new = 0;
-    size_t old = 0;
+    size_t new = 0; // counter for the result
+    size_t old = 0; // counter for the input
 
-    size_t loop = strlen(_text);
+    size_t loop = strlen(_text); // loop counter
 
     while (loop > 0)
     {
-        if (
-            (strcmp((_text + old), "\\") == 0) & 
-            (strcmp((_text + old + 1), "n") == 0))
-        {
-            result[new++] = '\n';
-            old += 2;
-        } else{
-            result[new++] = _text[old++];
+        if ((_text[old] == '\\') && // check each char for '\'
+            (_text[old + 1] == 'n')) // if '\' found check next char for n
+        { // \n found
+            result[new++] = '\n'; // send \n into result
+            old += 2; // advance old past n
+            loop--; // extra decrement for squashing 2 chars
+        } else{ // not \n
+            result[new++] = _text[old++]; // send old char to result
         }
-
         loop--;
     }
 
-    free(_text);
-    _text = realloc(result, sizeof(char) * new);
-    free(result);
-    return _text;
+    if (new == old) // check if there were no \n in _text
+    {
+        free(result); // free the unneeded alloc
+        return _text; // return arg without change
+    } else // there was \n in _text, need to realloc for the size difference
+    {
+        result[new] = 0; // null terminate the string
+        free(_text); // free the input alloc
+        char *ret = realloc(result, strlen(result));
+        if (ret != result) // check if realloc made a new alloc
+        {
+            free(result); // free the old alloc
+        }
+        return ret;
+    }
 }
 
+/* print cards in req'd format */
+void printCards(CARD** cards, int count){
+    // TODO: print cards in correct format
+    for (size_t i = 0; i < count; i++)
+    {
+        printf(" id: %u; name: %s; cost: %s; conv_cost: %u; type: %s; stats: %s; rarity: %s;\n text: \n%s\n\n",
+            cards[i]->id,
+            cards[i]->name,
+            cards[i]->cost,
+            cards[i]->converted_cost,
+            cards[i]->type,
+            cards[i]->stats,
+            rarityStringArray[(int)cards[i]->rarity],
+            cards[i]->text
+        );
+    }
+}
 
 /* Details from eLearning
 ## Instructions:

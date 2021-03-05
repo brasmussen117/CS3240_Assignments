@@ -1,4 +1,4 @@
-typedef enum _rarity
+typedef enum rarity
 {
 	common,
 	uncommon,
@@ -6,7 +6,7 @@ typedef enum _rarity
 	mythic
 } RARITY;
 
-typedef struct _card
+typedef struct card
 {
 	unsigned int id;
 	char* name;
@@ -17,3 +17,10 @@ typedef struct _card
 	char* stats;
 	RARITY rarity;
 } CARD;
+
+char* rarityStringArray[] = {
+	"common",
+	"uncommon",
+	"rare",
+	"mythic"
+};

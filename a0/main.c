@@ -47,21 +47,10 @@ int main(int argc, char const *argv[])
 
     char *free_stringp = NULL;
 
-    // entries[0] = malloc(sizeof(line_t)); // malloc the line at entries[0]
-    
-    // entries[0]->first = strsep(&stringp, " ");
-    // entries[0]->second = strsep(&stringp, " ");
-    // entries[0]->third = strsep(&stringp, "\n");
-
-    // free(free_stringp); // free last usage of stringp
-
     /* set the max values */
     int first_max_len = 0;
     int second_max_len = 0;
     int third_max_len = 0;
-
-    // printf("\nentries[0]: %s | %s | %s\n", entries[0].first, entries[0].second, entries[0].third); // debugging
-    // printf("max strlen >>> first: %d, second: %d, third: %d\n\n", first_max_len, second_max_len, third_max_len); // debugging
 
     /* #Read */
     int count = 0; // loop counter
@@ -102,9 +91,6 @@ int main(int argc, char const *argv[])
     
     /* # Print */
 
-    // printf("\nmax strlen >>> first: %d, second: %d, third: %d", first_max_len, second_max_len, third_max_len); // debugging
-    // printf("\nentries size: %d\n\n", count); // debugging
-    
     int total_width =  // calc the total_width
         2 // bar + spc
         + first_max_len 
@@ -193,9 +179,6 @@ int main(int argc, char const *argv[])
     
     free(buf);
 	free(horizontal);
-	// free(first_padding);
-	// free(second_padding);
-	// free(third_padding);
 
     return 0;
 }
@@ -247,7 +230,6 @@ char *repeat(char *s, int x)
 2. print bar of hypens, as wide as max widths for first, second, and third combined plus spaces on either side of each section and the bars
 
  */
-
 
 /* # Description:
 Write a program that reads a space-delimited table from a file. The table will always have three columns. The number rows will differ bewteen input files and is unbounded, meaning that there is no set maximum length. There will always be at least one row (no empty table).
