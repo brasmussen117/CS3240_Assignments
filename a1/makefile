@@ -7,6 +7,8 @@ clean: parser
 
 debug: main.c
 	cc -std=gnu11 -Wall -Werror -o parser main.c -g
+
+gdb: parser
 	gdb parser
 
 # parser: parser.o
