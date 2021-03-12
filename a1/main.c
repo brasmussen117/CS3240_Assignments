@@ -3,7 +3,7 @@
 
 /* function prototypes */
 
-int checkDuplicateCard(int, char *, CARD **, size_t);
+int checkDuplicateCard(CARD *, CARD **, size_t);
 int comparCardName(const void *, const void *);
 CARD *cardBuilder(unsigned, char *, char *, unsigned, char *, char *, char *, RARITY);
 RARITY strToRARITY(char *);
@@ -14,6 +14,8 @@ void printCards(CARD **, int);
 void freeCard(CARD *);
 void freeCards(CARD **, int);
 CARD *parse_csv(char *);
+char *stripQuotes(char *);
+
 
 
 int main(int argc, char const *argv[])
@@ -62,7 +64,7 @@ int main(int argc, char const *argv[])
         newCard = parse_csv(buf);
 
         /* check for and handle duplicates */
-        dup = checkDuplicateCard(newCard->id, newCard->name, cards, count); // check for duplicate
+        dup = checkDuplicateCard(newCard, cards, count); // check for duplicate
         if (dup != -1) // if dup returns a match then handle it
         {
             if (dup == -2) // check if new entry is not superseding, skip this entry if not
@@ -72,7 +74,7 @@ int main(int argc, char const *argv[])
                 continue; // skip to next iteration
             } else // new entry IS superseding, dup has index of obs card
             {
-                closeGap(cards, dup, count); // close the gap to remove obs card
+                closeGap(cards, dup, count--); // close the gap to remove obs card
             }
         } // else no duplicate found, then proceed
 
@@ -83,7 +85,6 @@ int main(int argc, char const *argv[])
         result = getline(&buf, &n, input_file); // read the next line
     } // end read loop
 
-    
     qsort(cards, count, sizeof(CARD*), comparCardName); // sort cards by name
 
     printCards(cards, count); // print cards
@@ -125,106 +126,93 @@ void freeCards(CARD **cards, int count){
 /* take buf line input, returns pointer to new card
  */
 CARD *parse_csv(char *buf){
-    /* vars for new card */
-    unsigned int _id = 0;
-    char *_name = NULL;
-    char *_cost = NULL;
-	unsigned int _converted_cost = 0;
-	char *_type = NULL;
-	char *_text = NULL;
-	char *_stats = NULL;
-    RARITY _rarity;
+    unsigned int _id = 0;               // var for bulding new card
+    char *_name = NULL;                 // var for bulding new card
+    char *_cost = NULL;                 // var for bulding new card
+	unsigned int _converted_cost = 0;   // var for bulding new card
+	char *_type = NULL;                 // var for bulding new card
+	char *_text = NULL;                 // var for bulding new card
+	char *_stats = NULL;                // var for bulding new card
+    RARITY _rarity;                     // var for bulding new card
 
-    char *stringp = NULL; // pointer for strsep
-    char *free_stringp = NULL; // pointer for cleaning memory in loop
+    char *line = strdup(buf); // dup the buf for strsep
+    char *free_line = line; // pointer for cleaning memory in loop
     char *rarityStr = NULL; // take rarity as string for conversion
-    char *end = NULL; // take the end of stringp for further parsing
+    char *temp_text = NULL; // place holder for stripping quotes
+    char *comma = NULL; // ptr for examining comma postions
+    
+    ssize_t offset = 0; // ptr for str separating
 
-    ssize_t offsetA = 0; // ptr for str separating
-    ssize_t offsetB = 0; // ptr for str separating
+    /* begin parsing input ------------------------------------------- */
 
-    /* begin parsing input -------------------------------------------- */
+    _id = atoi(strsep(&line, ",")); // get id field, convert to int
 
-    stringp = strdup(buf); // copy the buf for strsep
-    free_stringp = stringp; // get the pointer for the beginning of stringp
-    free(buf); // free buf
-
-    _id = atoi(strsep(&stringp, ","));
-    stringp++; // advance past dblQuote
-    _name = strdup(strsep(&stringp, "\""));
-
-    stringp++; // advance past comma
-    if (stringp[0] == ',') // check if next char is comma -> 
-    {
-        _cost = 0; // cost field empty
-    } else // cost field not empty
-    {
-        stringp++; // advance past dq
-        _cost = strdup(strsep(&stringp, "\""));
+    comma = strstr(line, ","); // find position of next comma
+    if (
+        (((char *)(comma - 1))[0] == '\"') && // check if there are double quotes on either side of comma
+        (((char *)(comma + 1))[0] == '\"')
+        )
+    { // comma is between double quotes
+        _name = stripQuotes(strsep(&line, ",")); // get name field, strip quotes
     }
-    
-    stringp++; // advance past the comma
-    
-    _converted_cost = atoi(strsep(&stringp, ",")); // convert the string to int
-    
-    stringp++; // advance past the dblQuote
-    
-    _type = strdup(strsep(&stringp, "\""));
-    
-    stringp += 2; // advance past the comma/dblQuote
-
-    /* reverse order parsing for end of input -------------- */
-    end = strsep(&stringp, "\r"); // hold the end of the line
-
-    offsetB = (strlen(end)); offsetA = offsetB; // set ptrs to the end
-    while (end[offsetB] != '\"') // set ptrs to final dblQuote
+    else // comma was not between double quotes, presume comma inside name field
     {
-        offsetB--;
+        line++; // advance past the beginning dq
+        _name = stripQuotes(strsep(&line, "\"")); // get name field, strip quotes
+        line++; // advance past the comma
     }
-    offsetB = offsetA;
+        
+    _cost = stripQuotes(strsep(&line, ",")); // get cost field, strip quotes
+    
+    _converted_cost = atoi(strsep(&line, ",")); // get converted_cost field, convert to int
 
-    while (end[offsetA] != ',') // march offsetA to the comma before rarity
-    {
-        offsetA--;
+    _type = stripQuotes(strsep(&line, ",")); // get type field, strip quotes
+
+    /* backtrack from the end to get text field ---------------------- */
+
+    offset = (strlen(line)); // set offset to the end of line, pre-increment past first quote
+
+    while (line[offset] != ','){ // march back to the comma before rarity
+        offset--;
     }
 
-    rarityStr = strndup((void *)(end + offsetA + 2), (offsetB - (offsetA + 2))); // copy end from offsetA to offsetB into _rarity
+    offset--; // set before last comma
 
-    _rarity = strToRARITY(rarityStr); // convert input string to RARITY
+    while (line[offset] != ','){ // march offset to the comma before stats
+        offset--;
+    }
+
+    temp_text = strndup(line, offset); // dup the text field
+    
+    _text = stripQuotes(temp_text);
+
+    free(temp_text);
+
+    _text = convNewlineChar(_text); // manage the \n chars
+
+    line = line + offset + 1; // point to first char of stat field
+
+    /* strsep the remainder as before -------------------------------- */
+
+    _stats = stripQuotes(strsep(&line, ",")); // get stats field, strip quotes
+
+    if (strstr(line,"\r"))
+    {
+        rarityStr = stripQuotes(strsep(&line, "\r")); // get rarityStr, strip quotes
+    } else
+    {
+        rarityStr = stripQuotes(strsep(&line, "\n")); // get rarityStr, strip quotes
+    }
+    
+    _rarity = strToRARITY(rarityStr); // convert rarityStr to RARITY
 
     free(rarityStr); // free the string
 
-    offsetA--; offsetB = offsetA; // set ptrs before the comma
+    /* clean up, build the new card, and return ---------------------- */
 
-    while (*(end + offsetA) != ',') // march offsetA to the next to last comma
-    {
-        offsetA--;
-    }
+    free(free_line); // free memory
 
-    if (offsetA == offsetB) // check if offsetA moved
-    {
-        _stats = 0; // if offsetA did not move, field was blank (,,)
-    }
-    else // offsetA DID move, copy the str and terminate
-    {
-        _stats = strndup((void *)(end + offsetA + 2), (offsetB - (offsetA + 2))); // copy the stat field
-    }
-    
-    offsetA--; // set offsetA before the comma
-
-    if (end[0] != ',') // check that text field not empyt (,,)
-    {
-        _text = strndup(end, offsetA); // dup the text field
-        _text = convNewlineChar(_text); // manage the \n chars
-    }
-    else // text field is empty
-    {
-        _text = 0; // point to zero
-    }
-    
-    free(free_stringp); // free memory
-
-    return cardBuilder( // build the new card and return
+    return cardBuilder(
         _id,
         _name,
         _cost,
@@ -236,21 +224,32 @@ CARD *parse_csv(char *buf){
     );
 }
 
-/* takes a string and strips off double quotes from either end */
+/* takes a string and strips off double quotes from either end
+    return s if it's empty
+    return allocated string if not empty
+        memory must be freed
+ */
 char *stripQuotes(char *s){
-    int end = strlen(s);
-    char *ret = NULL;
+    int len = strlen(s);
 
-    if (s[0] == "\"" && s[end] == "\"") // check that first and last char are dq
+    if (len != 0) // check if s is not empty
     {
-        ret = strndup(s[1], end-2);
-    } else // PROBLEM: either first or last was not dq
-    {
-        printf("Error: either first or last char was not a dq.\n");
-        printf("%s\n",s);
-        ret = s;
+        int end = len - 2; // point at last char, before \"
+
+        if (s[0] == '\"')  // check if first char is dq
+        { 
+            s++; // advance past dq
+            len--; // decrement for lost char
+        }
+        
+        if (s[end] == '\"')  // check if last char is dq, march back
+        { 
+            len--; // decrement before dq
+        }
+
+        return strndup(s, len); // dup s from index 1 to index end-1
     }
-    return ret;
+    return strdup("\0"); // s was empty, retutn new pointer to zero
 }
 
 /* check new card against cards
@@ -258,13 +257,13 @@ char *stripQuotes(char *s){
     return -2 if match found but new card is obs
     return index if match found and new card supersedes
  */
-int checkDuplicateCard(int id, char *name, CARD **cards, size_t count){
+int checkDuplicateCard(CARD *newCard, CARD **cards, size_t count){
 
     for (size_t i = 0; i < count; i++) // loop through cards
     {
-        if (strcmp(name, cards[i]->name) == 0) // compare input name with cards[i]->name
+        if (strcmp(newCard->name, cards[i]->name) == 0) // compare newCard.name with cards[i].name
         {
-            if (id <= cards[i]->id) // check if new id is obs
+            if (newCard->id <= cards[i]->id) // check if newCard id is obs
             {
                 return -2; // return obs flag
             }
@@ -331,13 +330,13 @@ RARITY strToRARITY(char *rarityStr){
             }
         }
         // rarityStr did not match any entries in rarityStringArray[]
-        printf("Error: invalid rarity found");
-        return -1; // will cause error
+        printf("Error: strToRarity: invalid str: %s\n",rarityStr);
+        return 0;
     }
-    else // rarityStr was null
+    else // rarityStr null
     {
-        printf("Error: rarity field null");
-        return -1; // will cause error
+        printf("Error: strToRarity: str null\n");
+        return 0;
     }
 }
 
@@ -345,9 +344,9 @@ RARITY strToRARITY(char *rarityStr){
     free spot being removed
     memmove to close gap
  */
-void closeGap(CARD** cards, int indexToBeCut, int cardCount){
-    free(cards[indexToBeCut]);
-    memmove(&cards[indexToBeCut], &cards[indexToBeCut + 1], sizeof(CARD) * (cardCount - indexToBeCut));
+void closeGap(CARD** cards, int index, int count){
+    freeCard(cards[index]);
+    memmove(&cards[index], &cards[index + 1], sizeof(CARD *) * (count - index));
 }
 
 /* take char*, find "\n" as string, and convert to special character
