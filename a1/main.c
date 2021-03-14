@@ -1,5 +1,4 @@
 #include "card.h"
-#include "useful_stuff.h"
 
 /* function prototypes */
 
@@ -7,108 +6,131 @@ int checkDuplicateCard(CARD *, CARD **, size_t);
 int comparCardName(const void *, const void *);
 CARD *cardBuilder(unsigned, char *, char *, unsigned, char *, char *, char *, RARITY);
 RARITY strToRARITY(char *);
-void closeGap(CARD **, int, int);
-char *convNewlineChar(char *);
+void closeCardGap(CARD **, int, int);
+void convNewlineChar(char *);
 void printCard(CARD *);
 void printCards(CARD **, int);
 void freeCard(CARD *);
 void freeCards(CARD **, int);
 CARD *parse_csv(char *);
-char *stripQuotes(char *);
-
+char *cleanstr(char *);
+void stripFieldQuotes(char *);
+void stripDoubledQuotes(char *);
+void closeStrGap(char *, char *);
 
 
 int main(int argc, char const *argv[])
 {
 	/* check for necessary arguments --------------------------- */
-    if (argc != 2)
+    if (argc < 2)
     {
-        printf("\nUsage: ./parser <file_name>\n\n");
-        return -1;
+        fprintf(stderr,"Usage: ./parser <file_name>\n");
+        return 1;
     }
-
+    if (argc > 2)
+    {
+        errno = E2BIG;
+        fprintf(stderr, "./parser: Arg list too long");
+        return 1;
+    }
+    
     /* open file ----------------------------------------------- */
     FILE *input_file = fopen(argv[1], "r"); // open the file given as argument in command line
 
     if (input_file == NULL) // check that fopen was sucessful
     {
-        printf("Error: file not succesfully opened");
-        return -2;
+        if (errno == ENOENT)
+        {
+            fprintf(stderr,"./parser: cannot open(\"%s\"): No such file or directory\n", argv[1]);
+        } else
+        {
+            fprintf(stderr, "./parser: cannot open(\"%s\"): error: %d\n", argv[1], errno);
+        }
+        return 1;
     }
     
     /* setup and get first line -------------------------------- */
     char *buf = NULL; // buffer
-    size_t n = 0; // size of result
+    size_t n = 0; // size of line
 
-    ssize_t result = getline(&buf, &n, input_file); // read the first line
+    ssize_t linesize = getline(&buf, &n, input_file); // read the first line, header unused
 
-    if (result < 0) // check that the file is not empty
+    if (linesize < 0) // check that the file is not empty
     {
-        printf("Error: file emtpy or getline error\n");
+        fprintf(stderr, "Error: file emtpy or getline error\n");
+        fclose(input_file);
         return 1;
     }
 
-    result = getline(&buf, &n, input_file); // read the second line
-
     CARD **cards = NULL; // array of CARD*
-    CARD *newCard = NULL;
+    CARD *newCard = NULL; // pointer for a new card
 
-    /* read loop ------------------------------------------------ */
+    /* read loop --------------------------------------------------- */
     
     ssize_t dup = 0; // duplicate card flag
 
     size_t count = 0; // main counter
 
-    while (result > 0) // primary read/parse loop
+    while (linesize > 0) // primary read/parse loop
     {
+        linesize = getline(&buf, &n, input_file); // read the next line
+
+        if (linesize <= 0) // check if there was a new line
+        {
+            continue; // break if line empty or error
+        }
+        
         newCard = parse_csv(buf);
 
-        /* check for and handle duplicates */
+        /* check for and handle duplicates ------------------------- */
         dup = checkDuplicateCard(newCard, cards, count); // check for duplicate
         if (dup != -1) // if dup returns a match then handle it
         {
             if (dup == -2) // check if new entry is not superseding, skip this entry if not
             {
                 freeCard(newCard);
-                result = getline(&buf, &n, input_file); // read the next line
                 continue; // skip to next iteration
             } else // new entry IS superseding, dup has index of obs card
             {
-                closeGap(cards, dup, count--); // close the gap to remove obs card
+                closeCardGap(cards, dup, count--); // close the gap to remove obs card
             }
         } // else no duplicate found, then proceed
 
-        cards = realloc(cards, sizeof(CARD*) * ++count); // realloc
+        cards = realloc(cards, sizeof(CARD*) * ++count); // realloc cards, pre-increment count
         
-        cards[count - 1] = newCard; // put newCard into cards, increment count
-
-        result = getline(&buf, &n, input_file); // read the next line
+        cards[count - 1] = newCard; // put newCard into cards
     } // end read loop
 
+    /* close file -------------------------------------------------- */
+    if (fclose(input_file) != 0) // close the file
+    {
+        fprintf(stderr, "Error: file not successfully closed\n");
+        return 2;
+    }
+    
+    /* sort and print cards ---------------------------------------- */
     qsort(cards, count, sizeof(CARD*), comparCardName); // sort cards by name
 
     printCards(cards, count); // print cards
 
-    if (fclose(input_file) != 0) // close the file
-    {
-        printf("Error: file not successfully closed\n");
-        return -2;
-    }
-    
-    /* free memory */
+    /* free memory ------------------------------------------------- */
+    free(buf);
     freeCards(cards, count);
     
 	return 0;
 }
 
-/* frees a CARD* and char* fields */
+/* frees a CARD* and char* fields
+    checks if certain fields are pointing to zptr:
+        cost, text, stats
+ */
 void freeCard(CARD *cardtofree){
     /* free the cards's char* fields */
     free(cardtofree->name);
-    free(cardtofree->cost);
+    if (cardtofree->cost != zptr) { free(cardtofree->cost); }
     free(cardtofree->type);
-    free(cardtofree->text);
-    free(cardtofree->stats);
+    if (cardtofree->text != zptr) { free(cardtofree->text); }
+    if (cardtofree->stats != zptr) { free(cardtofree->stats); }
     
     free(cardtofree); // free the card
 }
@@ -123,29 +145,29 @@ void freeCards(CARD **cards, int count){
     free(cards); // free the full array
 }
 
-/* take buf line input, returns pointer to new card
+/* take buf line input and parse 
+    returns pointer to new card
  */
 CARD *parse_csv(char *buf){
-    unsigned int _id = 0;               // var for bulding new card
-    char *_name = NULL;                 // var for bulding new card
-    char *_cost = NULL;                 // var for bulding new card
-	unsigned int _converted_cost = 0;   // var for bulding new card
-	char *_type = NULL;                 // var for bulding new card
-	char *_text = NULL;                 // var for bulding new card
-	char *_stats = NULL;                // var for bulding new card
-    RARITY _rarity;                     // var for bulding new card
+    unsigned int id = 0;               // var for bulding new card
+    char *name = NULL;                 // var for bulding new card
+    char *cost = NULL;                 // var for bulding new card
+	unsigned int converted_cost = 0;   // var for bulding new card
+	char *type = NULL;                 // var for bulding new card
+	char *text = NULL;                 // var for bulding new card
+	char *stats = NULL;                // var for bulding new card
+    RARITY rarity;                     // var for bulding new card
 
     char *line = strdup(buf); // dup the buf for strsep
     char *free_line = line; // pointer for cleaning memory in loop
     char *rarityStr = NULL; // take rarity as string for conversion
-    char *temp_text = NULL; // place holder for stripping quotes
     char *comma = NULL; // ptr for examining comma postions
     
     ssize_t offset = 0; // ptr for str separating
 
     /* begin parsing input ------------------------------------------- */
 
-    _id = atoi(strsep(&line, ",")); // get id field, convert to int
+    id = atoi(strsep(&line, ",")); // sep id field, convert to int
 
     comma = strstr(line, ","); // find position of next comma
     if (
@@ -153,20 +175,20 @@ CARD *parse_csv(char *buf){
         (((char *)(comma + 1))[0] == '\"')
         )
     { // comma is between double quotes
-        _name = stripQuotes(strsep(&line, ",")); // get name field, strip quotes
+        name = strdup(strsep(&line, ",")); // sep/dup name field
     }
-    else // comma was not between double quotes, presume comma inside name field
+    else // comma was not betweenn double quotes, presume comma inside name field
     {
         line++; // advance past the beginning dq
-        _name = stripQuotes(strsep(&line, "\"")); // get name field, strip quotes
+        name = strdup(strsep(&line, "\"")); // sep/dup name field
         line++; // advance past the comma
     }
         
-    _cost = stripQuotes(strsep(&line, ",")); // get cost field, strip quotes
+    cost = strdup(strsep(&line, ",")); // sep/dup cost field
     
-    _converted_cost = atoi(strsep(&line, ",")); // get converted_cost field, convert to int
+    converted_cost = atoi(strsep(&line, ",")); // sep converted_cost field, convert to int
 
-    _type = stripQuotes(strsep(&line, ",")); // get type field, strip quotes
+    type = strdup(strsep(&line, ",")); // sep/dup type field
 
     /* backtrack from the end to get text field ---------------------- */
 
@@ -182,74 +204,126 @@ CARD *parse_csv(char *buf){
         offset--;
     }
 
-    temp_text = strndup(line, offset); // dup the text field
+    text = strndup(line, offset); // dup the text field
     
-    _text = stripQuotes(temp_text);
-
-    free(temp_text);
-
-    _text = convNewlineChar(_text); // manage the \n chars
-
     line = line + offset + 1; // point to first char of stat field
 
     /* strsep the remainder as before -------------------------------- */
 
-    _stats = stripQuotes(strsep(&line, ",")); // get stats field, strip quotes
+    stats = strdup(strsep(&line, ",")); // sep/dup stats field
 
     if (strstr(line,"\r"))
     {
-        rarityStr = stripQuotes(strsep(&line, "\r")); // get rarityStr, strip quotes
+        rarityStr = strdup(strsep(&line, "\r")); // sep/dup rarityStr
     } else
     {
-        rarityStr = stripQuotes(strsep(&line, "\n")); // get rarityStr, strip quotes
+        rarityStr = strdup(strsep(&line, "\n")); // sep/dup rarityStr
     }
     
-    _rarity = strToRARITY(rarityStr); // convert rarityStr to RARITY
-
-    free(rarityStr); // free the string
-
     /* clean up, build the new card, and return ---------------------- */
+    rarity = strToRARITY(cleanstr(rarityStr)); // clean str, convert rarityStr to RARITY
+    free(rarityStr); // free rarityStr
 
     free(free_line); // free memory
 
     return cardBuilder(
-        _id,
-        _name,
-        _cost,
-        _converted_cost,
-        _type,
-        _text,
-        _stats,
-        _rarity
+        id,
+        cleanstr(name),
+        cleanstr(cost),
+        converted_cost,
+        cleanstr(type),
+        cleanstr(text),
+        cleanstr(stats),
+        rarity
     );
 }
 
-/* takes a string and strips off double quotes from either end
-    return s if it's empty
-    return allocated string if not empty
-        memory must be freed
+/* take an allocated string and clean as needed
+    checks if null, return zptr
+    calls convNewlineChar, stripFieldQuotes, stripDoubledQuotes as needed
+    returns realloc'd ptr
  */
-char *stripQuotes(char *s){
-    int len = strlen(s);
-
-    if (len != 0) // check if s is not empty
+char *cleanstr(char *s){
+    if ((s != zptr) && (s[0] != '\0'))
     {
-        int end = len - 2; // point at last char, before \"
+        stripFieldQuotes(s); // strip the quotes from beginning/end
 
-        if (s[0] == '\"')  // check if first char is dq
-        { 
-            s++; // advance past dq
-            len--; // decrement for lost char
-        }
+        stripDoubledQuotes(s); // strip doubled double quotes ("") to be a single double quote
         
-        if (s[end] == '\"')  // check if last char is dq, march back
-        { 
-            len--; // decrement before dq
-        }
+        convNewlineChar(s); // strip characters '\' & 'n' and places special \n character
 
-        return strndup(s, len); // dup s from index 1 to index end-1
+        return realloc(s, strlen(s) + 1); // realloc as necessary to account for dropped characters
+    } else
+    {
+        free(s); // free the allocated input
+        
+        return zptr;
     }
-    return strdup("\0"); // s was empty, retutn new pointer to zero
+}
+
+/* take char*, find '\n' as characters, convert to special character \n */
+void convNewlineChar(char *s){
+    
+    char *ptr = strstr(s, "\\");
+
+    if (ptr != NULL)
+    {
+        while (ptr != NULL)
+        {
+            if (((char *)(ptr + 1))[0] == 'n')
+            {
+                closeStrGap(ptr, (ptr + 1));
+                ptr[0] = '\n';
+            }
+
+            ptr++;
+
+            ptr = strstr(ptr, "\\");
+        }
+    } 
+}
+
+/* takes a string and strips off doubled double quotes */
+void stripDoubledQuotes(char *s){
+    
+    char *ptr = strstr(s, "\"");
+
+    if (ptr != NULL)
+    {
+        while (ptr != NULL)
+        {
+            if (((char *)(ptr + 1))[0] == '\"')
+            {
+                closeStrGap(ptr, (ptr + 1));
+            }
+
+            ptr++;
+
+            ptr = strstr(ptr, "\"");
+        }
+    } 
+}
+
+/* takes a string and strips off double quotes from either end */
+void stripFieldQuotes(char *s){
+
+    if (s[0] == '\"')  // check if first char is dq
+    { 
+        closeStrGap(s, (char *)(s + 1));
+    }
+    
+    int len = strlen(s); // length of s
+
+    if (s[len - 1] == '\"')  // check if last char is dq, march back
+    { 
+        closeStrGap((char *)(s + len - 1), "\0");
+    }
+}
+
+/* takes 2 char* and moves  */
+void closeStrGap(char *dest, char *src){
+    int span = strlen(src) + 1; // calculate the span to be moved
+    memmove(dest, src, span); // memmove from src to dest for span bytes
 }
 
 /* check new card against cards
@@ -291,28 +365,28 @@ int comparCardName(const void *cardA, const void *cardB){
  */
 CARD* cardBuilder(unsigned id, char* name, char* cost, unsigned converted_cost, char* type, char* text, char* stats, RARITY rarity){
     
-    CARD* result = malloc(sizeof(CARD)); // allocate space for one card
+    CARD *card = malloc(sizeof(CARD)); // allocate space for one card
 
     if ((id != 0) && // check that id is not blank
         (name) // check that name pointer is not null
     )
     {
-        result->id = id;
-        result->name = name;
-        result->cost = cost;
-        result->converted_cost = converted_cost;
-        result->type = type;
-        result->text = text;
-        result->stats = stats;
-        result->rarity = rarity;
+        card->id = id;
+        card->name = name;
+        card->cost = cost;
+        card->converted_cost = converted_cost;
+        card->type = type;
+        card->text = text;
+        card->stats = stats;
+        card->rarity = rarity;
     }
     else // id is 0, or name is null
     {
-        printf("\nError: ID/Name field invalid");
-        printf("\nID: %d, Name: %s", id, name);
+        fprintf(stderr, "\nError: ID/Name field invalid: %d, %s\n", id, name);
+        free(card);
         return NULL;
     }
-    return result;
+    return card;
 }
 
 /* converts char* to RARITY
@@ -322,20 +396,20 @@ RARITY strToRARITY(char *rarityStr){
     if (rarityStr) // check if rarityStr is null
     {
         // match the input to string of rarity, then put corresponding rarity into card
-        for (size_t j = 0; j < ARRAY_SIZE(rarityStringArray); j++)
+        for (size_t i = 0; i < rarityStrArrLen; i++)
         {
-            if (strcmp(rarityStr, (void *)rarityStringArray[j]) == 0)
+            if (strcmp(rarityStr, (void *)rarityStrArr[i]) == 0)
             {
-                return (RARITY)j;
+                return (RARITY)i;
             }
         }
-        // rarityStr did not match any entries in rarityStringArray[]
-        printf("Error: strToRarity: invalid str: %s\n",rarityStr);
+        // rarityStr did not match any entries in rarityStrArr[]
+        fprintf(stderr, "Error: strToRarity: invalid str: %s\n",rarityStr);
         return 0;
     }
     else // rarityStr null
     {
-        printf("Error: strToRarity: str null\n");
+        fprintf(stderr, "Error: strToRarity: str null\n");
         return 0;
     }
 }
@@ -344,55 +418,16 @@ RARITY strToRARITY(char *rarityStr){
     free spot being removed
     memmove to close gap
  */
-void closeGap(CARD** cards, int index, int count){
+void closeCardGap(CARD** cards, int index, int count){
     freeCard(cards[index]);
-    memmove(&cards[index], &cards[index + 1], sizeof(CARD *) * (count - index));
+    memmove(
+        &cards[index], 
+        &cards[index + 1], 
+        (sizeof(CARD *) * (count - index - 1))
+    );
 }
 
-/* take char*, find "\n" as string, and convert to special character
-    returns new pointer
-    previous pointer freed
- */
-char* convNewlineChar(char* _text){
-    char *result = malloc(strlen(_text));
-
-    size_t new = 0; // counter for the result
-    size_t old = 0; // counter for the input
-
-    size_t loop = strlen(_text); // loop counter
-
-    while (loop > 0)
-    {
-        if ((_text[old] == '\\') && // check each char for '\'
-            (_text[old + 1] == 'n')) // if '\' found check next char for n
-        { // \n found
-            result[new++] = '\n'; // send \n into result
-            old += 2; // advance old past n
-            loop--; // extra decrement for squashing 2 chars
-        } else{ // not \n
-            result[new++] = _text[old++]; // send old char to result
-        }
-        loop--;
-    }
-
-    if (new == old) // check if there were no \n in _text
-    {
-        free(result); // free the unneeded alloc
-        return _text; // return arg without change
-    } else // there was \n in _text, need to realloc for the size difference
-    {
-        result[new] = 0; // null terminate the string
-        free(_text); // free the input alloc
-        char *ret = realloc(result, strlen(result));
-        if (ret != result) // check if realloc made a new alloc
-        {
-            free(result); // free the old alloc
-        }
-        return ret;
-    }
-}
-
-/* prints entier cards array */
+/* prints entire cards array */
 void printCards(CARD** cards, int count){
     for (size_t i = 0; i < count; i++)
     {
@@ -402,16 +437,15 @@ void printCards(CARD** cards, int count){
 
 /* print a card in req'd format */
 void printCard(CARD *card){
-    // TODO: print cards in correct format
-        printf(" id: %u; name: %s; cost: %s; conv_cost: %u; type: %s; stats: %s; rarity: %s;\n text: \n%s\n\n",
-        card->id,
-        card->name,
+    fprintf(stdout, "%-32s%20s\n%-44s%8s\n%s\n%s\n%s\n%52s\n\n", 
+        card->name, 
         card->cost,
-        card->converted_cost,
         card->type,
-        card->stats,
-        rarityStringArray[(int)card->rarity],
-        card->text
+        rarityStrArr[(int)card->rarity],
+        hline,
+        card->text,
+        hline,
+        card->stats
     );
 }
 
