@@ -29,6 +29,12 @@ typedef struct card
 
 /* useful funcitons/values */
 
+typedef struct cardarr
+{
+	CARD **arr;
+	size_t count;
+} CARDARR;
+
 char* rarityStrArr[] = {
 	"common",
 	"uncommon",
@@ -38,7 +44,6 @@ char* rarityStrArr[] = {
 
 #define rarityStrArrLen 4
 
-/* horizontal border */
 const char *hline = "----------------------------------------------------";
 
 char *zptr = "\0";

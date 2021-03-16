@@ -1,3 +1,11 @@
+#include "cardfuncs.h"
+
+int main(int argc, char const *argv[])
+{
+    return 0;
+}
+
+
 /* specs from mimir 
 # DESCRIPTION
 For this assignment, you are to build off of the previous assignment's program which should make this much easier to handle.
