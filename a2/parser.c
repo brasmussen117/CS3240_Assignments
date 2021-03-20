@@ -1,8 +1,229 @@
 #include "cardfuncs.h"
 
+/* func prototypes */
+void writeCardIndexBin(FILE *, INDEX **, CARDARR *);
+INDEX **writeCardBin(FILE *, CARDARR *);
+
 int main(int argc, char const *argv[])
 {
+        /* check for necessary arguments --------------------------- */
+    if (argc < 2) // check that filename was given
+    {
+        fprintf(stderr, "Usage: ./parser <file_name>\n");
+        return 1;
+    }
+    if (argc > 2) // check that no extra args given
+    {
+        errno = E2BIG;
+        fprintf(stderr, "./parser: Arg list too long");
+        return 1;
+    }
+
+    /* open file ----------------------------------------------- */
+    char *input_filename = strdup(argv[1]);
+    FILE *input_file = fopen(input_filename, "r"); // open the file given as argument in command line
+
+    if (input_file == NULL) // check that fopen was sucessful
+    {
+        if (errno == ENOENT)
+        {
+            fprintf(stderr, "./parser: cannot open(\"%s\"): No such file or directory\n", argv[1]);
+        }
+        else
+        {
+            fprintf(stderr, "./parser: cannot open(\"%s\"): error: %d\n", argv[1], errno);
+        }
+        return 1;
+    }
+
+    CARDARR *cards = parse_file_csv(input_file);
+
+    /* close file -------------------------------------------------- */
+    if (fclose(input_file) != 0) // check file close success
+    {
+        fprintf(stderr, "Error: file not successfully closed: (\"%s\")\n", input_filename);
+        return 2;
+    }
+
+    /* sort cards -------------------------------------------------- */
+    qsort(cards->arr, cards->size, sizeof(CARD *), comparCardName);
+
+    /* write cards to bin file ------------------------------------- */
+    char *output_card_filename = input_filename; // start with input filename
+    output_card_filename = strcat(input_filename, "_cardbin"); // append the tag
+
+    FILE *output_card_file = fopen(output_card_filename, "wb"); // create file with above filename
+
+    INDEX **indices = writeCardBin(output_card_file, cards); // write cards to file, return **indices
+
+    if (fclose(output_card_file) != 0)
+    {
+        fprintf(stderr, "Error: file not successfully closed: (\"%s\")\n", output_card_filename);
+        return 3;
+    }
+    
+    /* write index to bin file ------------------------------------- */
+    char *output_index_filename = input_filename; // start with input filename
+    output_index_filename = strcat(output_index_filename, "_index"); // append the tag
+
+    FILE *output_index_file = fopen(output_index_filename, "wb");
+
+    writeCardIndexBin(output_index_file, indices, cards);
+
+    /* free memory ------------------------------------------------- */
+    freeCards(cards);
+    free(input_filename);
+
     return 0;
+}
+
+/* write cards to bin file */
+INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards){
+
+    INDEX **indices = NULL;
+
+    uint32_t *int32ptr = malloc(sizeof(uint32_t));
+
+    for (size_t i = 0; i < cards->size; i++)
+    {
+        /* make the index entries ---------------------------------- */
+        indices[i] = malloc(sizeof(INDEX));
+        indices[i]->offset = ftell(output_card_file);
+        indices[i]->name = cards->arr[i]->name;
+
+        /* write the card fields ----------------------------------- */
+        
+        /* id - unsigned int */
+        if (!fwrite((uint32_t)cards->arr[i]->id,
+            sizeof(uint32_t), 
+            1, 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: id field not written: %d", cards->arr[i]->id);
+        }
+
+        /* cost - char* */
+        if (!fwrite((uint32_t)strlen(cards->arr[i]->cost), 
+            sizeof(uint32_t), 
+            1, 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost size not written: %s", cards->arr[i]->cost);
+        }
+        
+        if (!fwrite(cards->arr[i]->cost, 
+            sizeof(char), 
+            strlen(cards->arr[i]->cost), 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost field not written: %s", cards->arr[i]->cost);
+        }
+
+        /* converted_cost - unsigned int */
+        if (!fwrite((uint32_t)cards->arr[i]->converted_cost,
+            sizeof(uint32_t), 
+            1, 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: converted_cost field not written: %d", cards->arr[i]->converted_cost);
+        }
+
+        /* type - char* */
+        if (!fwrite((uint32_t)strlen(cards->arr[i]->type), 
+            sizeof(uint32_t), 
+            1, 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost size not written: %s", cards->arr[i]->type);
+        }
+        
+        if (!fwrite(cards->arr[i]->type, 
+            sizeof(char), 
+            strlen(cards->arr[i]->type), 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost field not written: %s", cards->arr[i]->type);
+        }
+
+        /* text - char* */
+        if (!fwrite((uint32_t)strlen(cards->arr[i]->text), 
+            sizeof(uint32_t), 
+            1, 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost size not written: %s", cards->arr[i]->text);
+        }
+        
+        if (!fwrite(cards->arr[i]->text, 
+            sizeof(char), 
+            strlen(cards->arr[i]->text), 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost field not written: %s", cards->arr[i]->text);
+        }
+
+        /* stats - char* */
+        if (!fwrite((uint32_t)strlen(cards->arr[i]->stats), 
+            sizeof(uint32_t), 
+            1, 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost size not written: %s", cards->arr[i]->stats);
+        }
+        
+        if (!fwrite(cards->arr[i]->stats, 
+            sizeof(char), 
+            strlen(cards->arr[i]->stats), 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: cost field not written: %s", cards->arr[i]->stats);
+        }
+
+        /* rarity */
+        if (!fwrite((uint32_t)cards->arr[i]->rarity,
+            sizeof(uint32_t), 
+            1, 
+            output_card_file)
+        ){
+            fprintf(stderr, "Error: converted_cost field not written: %d", cards->arr[i]->rarity);
+        }
+    }
+    
+    free(int32ptr);
+
+    return indices;
+}
+
+/* write card index to bin file */
+void writeCardIndexBin(FILE *output_index_file, INDEX **indices, CARDARR *cards){
+    for (size_t i = 0; i < cards->size; i++)
+    {
+        /* name - char* */
+        if (!fwrite((uint32_t)strlen(indices[i]->name), 
+            sizeof(uint32_t), 
+            1, 
+            output_index_file)
+        ){
+            fprintf(stderr, "Error: Index: name size not written: %s", indices[i]->name);
+        }
+        
+        if (!fwrite(indices[i]->name, 
+            sizeof(char), 
+            strlen(indices[i]->name), 
+            output_index_file)
+        ){
+            fprintf(stderr, "Error: Index: name field not written: %s", indices[i]->name);
+        }
+
+        /* offset - long */
+        if (!fwrite(indices[i]->offset,
+            sizeof(long), 
+            1, 
+            output_index_file)
+        ){
+            fprintf(stderr, "Error: Index: offset field not written: %ld", indices[i]->offset);
+        }
+    }
 }
 
 
@@ -16,6 +237,10 @@ Create two programs, one called `parser` as before that takes the `.csv` file an
 1. As before, parse each line in the file into a `CARD` struct. See the included header file for a definition.
 2. Once the entire dataset is in memory, sort them by card name using the `qsort()` function.
 3. In one binary file (`index.bin`), write the card name and offset in which the record begins in the other file. The name length should be an int (uint32_t), then the characters of the string, without the null character. Theses names and the offsets should be written in alphabetical order.
+    * write each card one by one, field by field
+    * record the name and offset for each card to **index
+    * 
+
 4. In the second binary file (`cards.bin`), write the rest of the card data, which should be everything but the name. Each string field of the struct should first have an integer (uint32_t) indicating the string length, then the characters, without a null termininator. These fields should be written in the same order as they were read in from the CSV file.
 
 # Search

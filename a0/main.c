@@ -167,7 +167,7 @@ int main(int argc, char const *argv[])
    
     fclose(input_file); // close the file
     
-    // TODO: to be freed
+    // to be freed
     for (size_t i = 0; i < count; i++) // loop to free each part of entries
     {
         free(entries[i]->first);

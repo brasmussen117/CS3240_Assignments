@@ -86,7 +86,7 @@ int main(int argc, char const *argv[])
 		students[i]->lgrade = lgradeArray[index];
 	}
 	
-	// TODO: sort students by name
+	// sort students by name
 	qsort(students, count, sizeof(STUDENT*), comparNames);
 
 	/* print students */

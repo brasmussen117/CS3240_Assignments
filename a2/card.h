@@ -1,5 +1,3 @@
-/* required enum and struct */
-
 typedef enum rarity
 {
 	common,
