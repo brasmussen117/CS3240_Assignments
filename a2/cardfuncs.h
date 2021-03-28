@@ -390,7 +390,10 @@ CARD *parse_line_csv(char *buf)
         rarity);
 }
 
-/* loop and read file, puts cards into **cards */
+/* loop and read file, puts cards into *CARDARR 
+    return *CARDARR on success
+    return NULL on failure
+*/
 CARDARR *parse_file_csv(FILE *input_file)
 {
     CARDARR *cards = malloc(sizeof(CARDARR));
@@ -405,9 +408,10 @@ CARDARR *parse_file_csv(FILE *input_file)
 
     if (linesize < 0) // check that the file is not empty
     {
-        fprintf(stderr, "Error: file emtpy or getline error\n");
+        fprintf(stderr, "Error->parse_file_csv: file emtpy or getline error\n");
         fclose(input_file);
-        return cards;
+        free(cards);
+        return NULL;
     }
 
     CARD *newCard = NULL; // pointer for a new card
