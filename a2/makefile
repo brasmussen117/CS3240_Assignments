@@ -7,8 +7,9 @@ make:
 
 clean:
 	rm -f ./parser
-	rm -f ./s_cardbin
-	rm -f ./s_indexbin
+	rm -f ./search
+	rm -f ./bin/cardbin
+	rm -f ./bin/indexbin
 
 debug: $(file).c
 	cc -std=gnu11 -Wall -Werror -o $(file) $(file).c -g -no-pie

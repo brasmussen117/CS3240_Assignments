@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 /* defs */
-#define cardbinfn ".cardbin"
-#define indexbinfn ".indexbin"
+#define cardbinfn "bin/cardbin"
+#define indexbinfn "bin/indexbin"
 
 /* structs --------------------------------------------------------- */
 typedef struct cardarr // struct for holding array of cards and the size
