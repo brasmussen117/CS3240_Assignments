@@ -17,7 +17,7 @@ typedef struct cardarr // struct for holding array of cards and the size
 typedef struct index // struct for index entry values
 {
     char *name;
-    long offset;
+    long *offset;
 } INDEX;
 
 const char* rarityStrArr[] = { // array for string values of RARITY enum

@@ -161,7 +161,6 @@ uint32_t *convtoptr_uint32_t(uint32_t i)
 /* write cards to bin file */
 INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
 {
-
     INDEX **indices = NULL;
 
     // uint32_t *int32ptr = malloc(sizeof(uint32_t));
@@ -171,7 +170,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
         /* make the index entries ---------------------------------- */
         indices = realloc(indices, (sizeof(INDEX *) * (i + 1)));
         indices[i] = malloc(sizeof(INDEX));
-        indices[i]->offset = ftell(output_card_file);
+        *indices[i]->offset = ftell(output_card_file);
         indices[i]->name = cards->arr[i]->name;
 
         // #region write card fields -------------------------------

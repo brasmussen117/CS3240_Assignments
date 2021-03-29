@@ -40,13 +40,31 @@ int main(int argc, char const *argv[])
 	// CARDARR *cards = malloc(sizeof(CARDARR));
 	// cards->arr = malloc(sizeof(CARD*) * *indexsize);
 	// cards->size = *indexsize;
-	uint32_t *len = malloc
+	uint32_t *len = malloc(sizeof(uint32_t));
 
 	for (uint32_t i = 0; i < *indexsize; i++)
 	{
+		if (fread(len, sizeof(uint32_t), 1, indexbin) != 1) // try to read strlen
+		{
+			fprintf(stderr, "./search: cannot read size: loop-%ld", i);
+			return 2;
+		}
+
+		if (fread(indices[i]->name, sizeof(char), *len, indexbin) != len) // try to read name
+		{
+			fprintf(stderr, "./search: cannot read name: loop-%ld", i);
+			return 2;
+		}
 		
-		indices[i]->name
+		if (fread(indices[i]->offset, sizeof(long), 1, indexbin) != 1)
+		{
+			fprintf(stderr, "./search: cannot read offset: loop-%ld", i);
+			return 2;
+		}
+		
+		
 	}
+	free(len);
 	
 	
 
