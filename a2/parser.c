@@ -103,6 +103,9 @@ int main(int argc, char const *argv[])
         return 3;
     }
 
+    /* print success message --------------------------------------- */
+    fprintf(stdout, "Successfully created %s and %s\n", cardbin_filename, indexbin_filename);
+
     /* free memory ------------------------------------------------- */
     freeCards(cards);
     if (input_filename != clean_filename)
@@ -111,7 +114,6 @@ int main(int argc, char const *argv[])
     free(cardbin_filename);
     free(indexbin_filename);
 
-    fprintf(stdout, "Successfully created %s and %s\n", cardbin_filename, indexbin_filename);
     return 0;
 }
 
@@ -145,14 +147,14 @@ char *cleanfilename(char *input_filename)
 
     return strndup(
         (char *)(input_filename + begin),
-        (end - begin - 1));
+        (end - begin));
 }
 
 /* convert uint32_t to ptr */
 uint32_t *convtoptr_uint32_t(uint32_t i)
 {
     uint32_t *ret = malloc(sizeof(uint32_t));
-    *ret = (uint32_t)i;
+    *ret = i;
     return ret;
 }
 
@@ -206,7 +208,6 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                        *cost_len,
                        output_card_file) != *cost_len)
             {
-                // fprintf(stderr, "parser.writeCardBin: cost field not written: %s\n", cards->arr[i]->cost);
                 perror("parser.writeCardBin: cost field not written");
                 exit(EXIT_FAILURE);
             }
@@ -274,26 +275,37 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
         // #endregion
 
         // #region stats - char*
-        uint32_t *stats_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->stats));
-        if (!fwrite(stats_len,
+        uint32_t *stats_len = NULL;
+        if (cards->arr[i]->stats != zptr_char) // check if field was blank, if so remain zero
+        {
+            stats_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->stats));
+        } else
+        {
+            stats_len = convtoptr_uint32_t(0);
+        }
+
+        if (fwrite(stats_len,
                     sizeof(uint32_t),
                     1,
-                    output_card_file))
+                    output_card_file) != 1) // try to write, handle if fail
         {
             fprintf(stderr, "parser.writeCardBin: stats size not written: %s\n", cards->arr[i]->stats);
             exit(EXIT_FAILURE);
         }
-        if (stats_len > 0)
+
+        if (stats_len > 0) // check if anything to write
         {
-            if (!fwrite(cards->arr[i]->stats,
-                        sizeof(char),
-                        strlen(cards->arr[i]->stats),
-                        output_card_file))
+            if (fwrite(cards->arr[i]->stats,
+                    sizeof(char),
+                    *stats_len,
+                    output_card_file) 
+                != *stats_len) // try to write, handle if fail
             {
-                fprintf(stderr, "parser.writeCardBin: stats field not written: %s\n", cards->arr[i]->stats);
+                perror("parser.writeCardBin: stats field not written");
                 exit(EXIT_FAILURE);
             }
         }
+        
         free(stats_len);
         // #endregion
 

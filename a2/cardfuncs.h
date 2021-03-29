@@ -33,26 +33,26 @@ const int rarityStrArrLen = 4; // size of rarityStrArr[]
 /* horizontal border */
 const char *hline = "----------------------------------------------------";
 
-char *zptr = "\0"; // a single reusable pointer for holding a zero char
+char *zptr_char = "\0"; // a single reusable pointer for holding a zero char
 
 /* frees a CARD* and char* fields
-    checks if certain fields are pointing to zptr:
+    checks if certain fields are pointing to zptr_char:
         cost, text, stats
  */
 void freeCard(CARD *cardtofree)
 {
     /* free the cards's char* fields */
     free(cardtofree->name);
-    if (cardtofree->cost != zptr)
+    if (cardtofree->cost != zptr_char)
     {
         free(cardtofree->cost);
     }
     free(cardtofree->type);
-    if (cardtofree->text != zptr)
+    if (cardtofree->text != zptr_char)
     {
         free(cardtofree->text);
     }
-    if (cardtofree->stats != zptr)
+    if (cardtofree->stats != zptr_char)
     {
         free(cardtofree->stats);
     }
@@ -142,13 +142,13 @@ void stripFieldQuotes(char *s)
 }
 
 /* take an allocated string and clean as needed
-    checks if null, return zptr
+    checks if null, return zptr_char
     calls convNewlineChar, stripFieldQuotes, stripDoubledQuotes as needed
     returns realloc'd ptr
  */
 char *cleanstr(char *s)
 {
-    if ((s != zptr) && (s[0] != '\0'))
+    if ((s != zptr_char) && (s[0] != '\0'))
     {
         stripFieldQuotes(s); // strip the quotes from beginning/end
 
@@ -162,7 +162,7 @@ char *cleanstr(char *s)
     {
         free(s); // free the allocated input
 
-        return zptr; // return pointer to zero
+        return zptr_char; // return pointer to zero
     }
 }
 
