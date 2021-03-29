@@ -33,7 +33,7 @@ const int rarityStrArrLen = 4; // size of rarityStrArr[]
 /* horizontal border */
 const char *hline = "----------------------------------------------------";
 
-char *zptr = "\0"; // a single reusable pointer for holding a zero char
+#define zptr "\0" // a single reusable pointer for holding a zero char
 
 /* frees a CARD* and char* fields
     checks if certain fields are pointing to zptr:
