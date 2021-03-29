@@ -7,6 +7,10 @@
 #include <errno.h>
 #include <stdint.h>
 
+/* defs */
+#define cardbinfn ".cardbin"
+#define indexbinfn ".indexbin"
+
 /* structs --------------------------------------------------------- */
 typedef struct cardarr // struct for holding array of cards and the size
 {
@@ -20,12 +24,21 @@ typedef struct index // struct for index entry values
     long *offset;
 } INDEX;
 
+typedef struct indexarr
+{
+    INDEX **arr;
+    uint32_t *size;
+} INDEXARR;
+
+
 const char* rarityStrArr[] = { // array for string values of RARITY enum
 	"common",
 	"uncommon",
 	"rare",
 	"mythic"
 };
+
+/* global vars ----------------------------------------------------- */
 
 const int rarityStrArrLen = 4; // size of rarityStrArr[]
 

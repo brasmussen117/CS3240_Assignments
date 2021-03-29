@@ -78,6 +78,7 @@ int main(int argc, char const *argv[])
 
 	}
 	
+	// TODO: Need to free the index
 
 	return 0;
 }

@@ -1,8 +1,10 @@
 #include "cardfuncs.h"
 
 /* func prototypes */
-void writeCardIndexBin(FILE *, INDEX **, CARDARR *);
-INDEX **writeCardBin(FILE *, CARDARR *);
+void freeindices(INDEXARR *);
+void freeindex(INDEX *);
+INDEXARR *writeCardBin(FILE *, CARDARR *);
+void writeIndexBin(FILE *, INDEXARR *);
 char *cleanfilename(char *);
 
 int main(int argc, char const *argv[])
@@ -21,7 +23,7 @@ int main(int argc, char const *argv[])
     }
 
     /* open file --------------------------------------------------- */
-    char *input_filename = strdup(argv[1]);
+    const char *input_filename = argv[1];
 
     FILE *input_file = fopen(input_filename, "r"); // open the file given as argument in command line
 
@@ -38,9 +40,6 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
-    /* clean filename ---------------------------------------------- */
-    char *clean_filename = cleanfilename(input_filename);
-
     /* parse csv file into CARDARR --------------------------------- */
     CARDARR *cards = parse_file_csv(input_file);
 
@@ -53,7 +52,7 @@ int main(int argc, char const *argv[])
     /* close file -------------------------------------------------- */
     if (fclose(input_file) != 0) // check file close success
     {
-        fprintf(stderr, "parser.main: file not successfully closed: (\"%s\")\n", clean_filename);
+        fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", input_filename);
         return 2;
     }
 
@@ -61,93 +60,62 @@ int main(int argc, char const *argv[])
     qsort(cards->arr, cards->size, sizeof(CARD *), comparCardName);
 
     /* write cards to bin file ------------------------------------- */
-    char *cardbin_filename = strdup(clean_filename);                          // start with input filename
-    cardbin_filename = realloc(cardbin_filename, strlen(clean_filename) + 8); // realloc to new size
-    cardbin_filename = strcat(cardbin_filename, "_cardbin");                  // append the tag
-
-    FILE *output_card_file = fopen(cardbin_filename, "wb"); // create file with above filename
+    FILE *output_card_file = fopen(cardbinfn, "wb"); // create file with above filename
 
     if (!output_card_file)
     {
-        fprintf(stderr, "parser.main: file not successfully created: (\"%s\")\n", cardbin_filename);
+        fprintf(stderr, "parser::main: file not successfully created: (\"%s\")\n", cardbinfn);
         return 3;
     }
 
-    INDEX **indices = NULL;
+    INDEXARR *indices = NULL;
     indices = writeCardBin(output_card_file, cards); // write cards to file, return **indices
 
     if (indices == NULL)
     {
-        fprintf(stderr, "parser.main: index not successfully created\n");
+        fprintf(stderr, "parser::main: index not successfully created\n");
         return 4;
     }
 
     if (fclose(output_card_file) != 0)
     {
-        fprintf(stderr, "parser.main: file not successfully closed: (\"%s\")\n", cardbin_filename);
+        fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", cardbinfn);
         return 3;
     }
 
     /* write index to bin file ------------------------------------- */
-    char *indexbin_filename = strdup(clean_filename);                                // start with input filename
-    indexbin_filename = realloc(indexbin_filename, (strlen(indexbin_filename) + 9)); // realloc to new size
-    indexbin_filename = strcat(indexbin_filename, "_indexbin");                      // append the tag
+    FILE *output_index_file = fopen("_indexbin", "wb");
 
-    FILE *output_index_file = fopen(indexbin_filename, "wb");
-
-    writeCardIndexBin(output_index_file, indices, cards);
+    writeIndexBin(output_index_file, indices);
 
     if (fclose(output_index_file) != 0)
     {
-        fprintf(stderr, "parser.main: file not successfully closed: (\"%s\")\n", indexbin_filename);
+        fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", indexbinfn);
         return 3;
     }
 
     /* print success message --------------------------------------- */
-    fprintf(stdout, "Successfully created %s and %s\n", cardbin_filename, indexbin_filename);
+    fprintf(stdout, "Successfully created %s and %s\n", cardbinfn, indexbinfn);
 
     /* free memory ------------------------------------------------- */
     freeCards(cards);
-    if (input_filename != clean_filename)
-        free(clean_filename);
-    free(input_filename);
-    free(cardbin_filename);
-    free(indexbin_filename);
 
     return 0;
 }
 
-/* clean a filename
-    strip file path and extension
- */
-char *cleanfilename(char *input_filename)
-{
-
-    size_t begin = strlen(input_filename);
-    size_t end = begin;
-
-    /* find beginning of string */
-    if (strstr(input_filename, "/") != NULL)
+/* free INDEXARR *indices */
+void freeindices(INDEXARR *indices){
+    for (size_t i = 0; i < *indices->size; i++)
     {
-        while (input_filename[begin] != '/')
-        {
-            begin--;
-        }
+        freeindex(indices->arr[i]);
     }
-    else
-    {
-        begin = 0;
-    }
+    free(indices);
+}
 
-    /* find end of string */
-    while (input_filename[end] != '.')
-    {
-        end--;
-    }
-
-    return strndup(
-        (char *)(input_filename + begin),
-        (end - begin));
+/* free index entry */
+void freeindex(INDEX *entry){
+    free(entry->name);
+    free(entry->offset);
 }
 
 /* convert uint32_t to ptr */
@@ -159,19 +127,21 @@ uint32_t *convtoptr_uint32_t(uint32_t i)
 }
 
 /* write cards to bin file */
-INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
+INDEXARR *writeCardBin(FILE *output_card_file, CARDARR *cards)
 {
-    INDEX **indices = NULL;
-
-    // uint32_t *int32ptr = malloc(sizeof(uint32_t));
+    INDEXARR *indices = malloc(sizeof(INDEXARR));
+    indices->arr = malloc(sizeof(INDEX*) * cards->size);
+    indices->size = malloc(sizeof(uint32_t));
+    *indices->size = (uint32_t)cards->size;
 
     for (size_t i = 0; i < cards->size; i++)
     {
         /* make the index entries ---------------------------------- */
         indices = realloc(indices, (sizeof(INDEX *) * (i + 1)));
-        indices[i] = malloc(sizeof(INDEX));
-        *indices[i]->offset = ftell(output_card_file);
-        indices[i]->name = cards->arr[i]->name;
+        indices->arr[i] = malloc(sizeof(INDEX));
+        indices->arr[i]->offset = malloc(sizeof(long));
+        *indices->arr[i]->offset = ftell(output_card_file);
+        indices->arr[i]->name = cards->arr[i]->name;
 
         // #region write card fields -------------------------------
 
@@ -182,7 +152,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     1,
                     output_card_file))
         {
-            fprintf(stderr, "parser.writeCardBin: id field not written: %d\n", cards->arr[i]->id);
+            fprintf(stderr, "parser::writeCardBin: id field not written: %d\n", cards->arr[i]->id);
             exit(EXIT_FAILURE);
         }
         free(idout);
@@ -195,7 +165,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     1,
                     output_card_file))
         {
-            fprintf(stderr, "parser.writeCardBin: cost size not written: %s\n", cards->arr[i]->cost);
+            fprintf(stderr, "parser::writeCardBin: cost size not written: %s\n", cards->arr[i]->cost);
             exit(EXIT_FAILURE);
         }
 
@@ -207,7 +177,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                        *cost_len,
                        output_card_file) != *cost_len)
             {
-                perror("parser.writeCardBin: cost field not written");
+                perror("parser::writeCardBin: cost field not written");
                 exit(EXIT_FAILURE);
             }
         }
@@ -221,7 +191,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     1,
                     output_card_file))
         {
-            fprintf(stderr, "parser.writeCardBin: converted_cost field not written: %d\n", cards->arr[i]->converted_cost);
+            fprintf(stderr, "parser::writeCardBin: converted_cost field not written: %d\n", cards->arr[i]->converted_cost);
             exit(EXIT_FAILURE);
         }
         free(converted_cost_out);
@@ -234,7 +204,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     1,
                     output_card_file))
         {
-            fprintf(stderr, "parser.writeCardBin: type size not written: %s\n", cards->arr[i]->type);
+            fprintf(stderr, "parser::writeCardBin: type size not written: %s\n", cards->arr[i]->type);
             exit(EXIT_FAILURE);
         }
         free(type_len);
@@ -244,7 +214,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     strlen(cards->arr[i]->type),
                     output_card_file))
         {
-            fprintf(stderr, "parser.writeCardBin: type field not written: %s\n", cards->arr[i]->type);
+            fprintf(stderr, "parser::writeCardBin: type field not written: %s\n", cards->arr[i]->type);
             exit(EXIT_FAILURE);
         }
         // #endregion
@@ -256,7 +226,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     1,
                     output_card_file))
         {
-            fprintf(stderr, "parser.writeCardBin: text size not written: %s\n", cards->arr[i]->text);
+            fprintf(stderr, "parser::writeCardBin: text size not written: %s\n", cards->arr[i]->text);
             exit(EXIT_FAILURE);
         }
         if (text_len > 0) // check if field was blank
@@ -266,7 +236,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                         strlen(cards->arr[i]->text),
                         output_card_file))
             {
-                fprintf(stderr, "parser.writeCardBin: text field not written: %s\n", cards->arr[i]->text);
+                fprintf(stderr, "parser::writeCardBin: text field not written: %s\n", cards->arr[i]->text);
                 exit(EXIT_FAILURE);
             }
         }
@@ -288,7 +258,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     1,
                     output_card_file) != 1) // try to write, handle if fail
         {
-            fprintf(stderr, "parser.writeCardBin: stats size not written: %s\n", cards->arr[i]->stats);
+            fprintf(stderr, "parser::writeCardBin: stats size not written: %s\n", cards->arr[i]->stats);
             exit(EXIT_FAILURE);
         }
 
@@ -300,7 +270,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     output_card_file) 
                 != *stats_len) // try to write, handle if fail
             {
-                perror("parser.writeCardBin: stats field not written");
+                perror("parser::writeCardBin: stats field not written");
                 exit(EXIT_FAILURE);
             }
         }
@@ -315,7 +285,7 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
                     1,
                     output_card_file))
         {
-            fprintf(stderr, "parser.writeCardBin: rarity field not written: %d\n", cards->arr[i]->rarity);
+            fprintf(stderr, "parser::writeCardBin: rarity field not written: %d\n", cards->arr[i]->rarity);
             exit(EXIT_FAILURE);
         }
         free(rarity_out);
@@ -328,57 +298,52 @@ INDEX **writeCardBin(FILE *output_card_file, CARDARR *cards)
 }
 
 /* write card index to bin file */
-void writeCardIndexBin(FILE *output_index_file, INDEX **indices, CARDARR *cards)
+void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
 {
     /* write the size of the index - uint32_t ---------------------- */
-    uint32_t *sizeout = convtoptr_uint32_t((uint32_t)cards->size);
-    if (!fwrite(sizeout,
+    if (!fwrite(indices->size,
                 sizeof(uint32_t),
                 1,
                 output_index_file))
     {
-        fprintf(stderr, "parser.writeCardIndexBin: index size not written: %ld\n", cards->size);
+        fprintf(stderr, "parser::writeIndexBin: index size not written: %d\n", *indices->size);
         exit(EXIT_FAILURE);
     }
-    free(sizeout);
 
     /* loop and write each index entry ----------------------------- */
-    for (size_t i = 0; i < cards->size; i++)
+    for (size_t i = 0; i < *indices->size; i++)
     {
         /* name size - uint32_t */
-        uint32_t *name_len = convtoptr_uint32_t((uint32_t)strlen(indices[i]->name));
+        uint32_t *name_len = convtoptr_uint32_t((uint32_t)strlen(indices->arr[i]->name));
         if (!fwrite(name_len,
                     sizeof(uint32_t),
                     1,
                     output_index_file))
         {
-            fprintf(stderr, "parser.writeCardIndexBin: name size not written: %s\n", indices[i]->name);
+            fprintf(stderr, "parser::writeIndexBin: name size not written: %s\n", indices->arr[i]->name);
             exit(EXIT_FAILURE);
         }
         free(name_len);
 
         /* name - char* */
-        if (!fwrite(indices[i]->name,
+        if (!fwrite(indices->arr[i]->name,
                     sizeof(char),
-                    strlen(indices[i]->name),
+                    strlen(indices->arr[i]->name),
                     output_index_file))
         {
-            fprintf(stderr, "parser.writeCardIndexBin: name field not written: %s\n", indices[i]->name);
+            fprintf(stderr, "parser::writeIndexBin: name field not written: %s\n", indices->arr[i]->name);
             exit(EXIT_FAILURE);
         }
 
         /* offset - long */
-        long *offset_out = malloc(sizeof(long));
-        *offset_out = indices[i]->offset;
-        if (!fwrite(offset_out,
+        if (!fwrite(indices->arr[i]->offset,
                     sizeof(long),
                     1,
                     output_index_file))
         {
-            fprintf(stderr, "parser.writeCardIndexBin: offset field not written: %ld\n", indices[i]->offset);
+            fprintf(stderr, "parser::writeIndexBin: offset field not written: %ln\n", indices->arr[i]->offset);
             exit(EXIT_FAILURE);
         }
-        free(offset_out);
     }
 }
 
