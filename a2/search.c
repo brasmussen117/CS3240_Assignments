@@ -1,7 +1,5 @@
 #include "cardfuncs.h"
 
-#define fn "s_indexbin"
-
 int main(int argc, char const *argv[])
 {
 	/* check for necessary arguments ------------------------------- */
@@ -13,7 +11,7 @@ int main(int argc, char const *argv[])
     }
 
 	/* open index -------------------------------------------------- */
-	FILE *indexbin = fopen(fn, "rb");
+	FILE *indexbin = fopen(indexbinfn, "rb");
 
 	if (indexbin == NULL) // check that fopen was sucessful
     {
@@ -72,26 +70,157 @@ int main(int argc, char const *argv[])
 
 	/* UI loop ----------------------------------------------------- */
 	char *userinput[100]; // take user input
+	int result; // get result of search
+
 	while ((userinput != "q") && (userinput != "Q"))
 	{
 		fprintf(stdout, ">>");
 		if (scanf("%s", userinput) <= 0)
 		{
 			perror("./search::main: scanf failed to get user input");
-			return 1;
 		}
 
+		result = search(userinput, indices);
 
-
+		if (result == -1)
+		{
+			fprintf(stdout, "./search: '%s' not found!", userinput);
+		}
+		
 	}
 	
 	/* free memory ------------------------------------------------- */
 	freeindices(indices);
-	// freeCard(card); TODO:
 
 	return 0;
 }
 
+/* read cards bin
+	return new CARD*
+ */
+CARD *readCardBin(char *cardbin_filename, INDEX *index){
+	FILE *cardbin = fopen(cardbin_filename, "rb");
+	if (cardbin == NULL)
+	{
+		perror("./search::readCardBin: failed to open bin file");
+		exit(EXIT_FAILURE);
+	}
+
+	fseek(cardbin, *index->offset, SEEK_SET);
+
+	uint32_t *len; // hold length of each char* for reading from file
+
+	uint32_t *id;
+	char *cost;
+	uint32_t *converted_cost;
+	char *type;
+	char *text;
+	char *stats;
+	uint32_t *rarity_uint32_t;
+	RARITY rarity;
+
+	/* id field */
+	if (fread(id, sizeof(uint32_t), 1, cardbin) != 1)
+	{
+		perror("./search::readCardBin: failed to read id field");
+	}
+	
+	/* cost len */
+	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
+	{
+		perror("./search::readCardBin: failed to read cost-len");
+	}
+	
+	/* cost field */
+	if (fread(cost, sizeof(char), (size_t)*len, cardbin) != *len)
+	{
+		perror("./search::readCardBin: failed to read cost field");
+	}
+	
+	/* converted_cost field */
+	if (fread(converted_cost, sizeof(uint32_t), 1, cardbin) != 1)
+	{
+		perror("./search::readCardBin: failed to read converted_cost field");
+	}
+	
+	/* type len */
+	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
+	{
+		perror("./search::readCardBin: failed to read type-len");
+	}
+	
+	/* type field */
+	if (fread(type, sizeof(char), (size_t)*len, cardbin) != len)
+	{
+		perror("./search::readCardBin: failed to read type field");
+	}
+	
+	/* text len */
+	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
+	{
+		perror("./search::readCardBin: failed to read text-len");
+	}
+	
+	/* text field */
+	if (fread(text, sizeof(char), (size_t)*len, cardbin) != len)
+	{
+		perror("./search::readCardBin: failed to read text field");
+	}
+	
+	/* stats len */
+	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
+	{
+		perror("./search::readCardBin: failed to read stats-len");
+	}
+	
+	/* stats field */
+	if (fread(stats, sizeof(char), (size_t)*len, cardbin) != len)
+	{
+		perror("./search::readCardBin: failed to read stats field");
+	}
+	
+	/* rarirty_uint32_t field */
+	if (fread(rarity_uint32_t, sizeof(uint32_t), 1, cardbin) != 1)
+	{
+		perror("./search::readCardBin: failed to read rarity field");
+	}
+	rarity = (RARITY)rarity_uint32_t; // convert uint32_t to rarity
+
+	return cardBuilder((unsigned int)*id, index->name, cost, (unsigned int)*converted_cost, type, text, stats, rarity);
+}
+
+/* custom comparator for bsearch 
+	returns strmp of index entry names 
+*/
+int comparIndexNames(const void *indexA, const void *indexB){
+	const INDEX *A = *(INDEX **)indexA;
+	const INDEX *B = *(INDEX **)indexB;
+	return strcmp(A->name, B->name);
+}
+
+/* search the index for userinput
+	return -1 if no match
+		0 if good match
+ */
+int search(char *userinput, INDEXARR *indices){
+	INDEX *found_index = NULL;
+	CARD *found_card = NULL;
+
+	found_index = bsearch(userinput, indices->arr, (size_t)indices->size, sizeof(INDEX*), comparIndexNames);
+
+	if (found_index == NULL)
+	{
+		return -1; // failed to find match
+	}
+	
+	found_card = readCardBin(cardbinfn, found_index);
+
+	printCard(found_card);
+
+	free(found_card);
+	
+	return 0;
+}
 
 /* 
 # Search

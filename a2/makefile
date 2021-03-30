@@ -8,8 +8,8 @@ make:
 clean:
 	rm -f ./parser
 	rm -f ./search
-	rm -f ./bin/cards
-	rm -f ./bin/index
+	rm -f ./bin/cards.bin
+	rm -f ./bin/index.bin
 
 debug: $(file).c
 	cc -std=gnu11 -Wall -Werror -o $(file) $(file).c -g -no-pie

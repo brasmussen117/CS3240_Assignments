@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 /* defs */
-#define cardbinfn "bin/cards"
-#define indexbinfn "bin/index"
+#define cardbinfn "bin/cards.bin"
+#define indexbinfn "bin/index.bin"
 
 const char *rarityStrArr[] = { // array for string values of RARITY enum
     "common",
