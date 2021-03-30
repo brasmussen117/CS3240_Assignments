@@ -1,13 +1,16 @@
 testfile = s.csv
 
-file = parser
+file = search
 
 make:
 	cc -std=gnu11 -Wall -Werror -o parser parser.c
+	cc -std=gnu11 -Wall -Werror -o search search.c
 
-clean:
+cleanx:
 	rm -f ./parser
 	rm -f ./search
+
+cleanb:
 	rm -f ./bin/cards.bin
 	rm -f ./bin/index.bin
 

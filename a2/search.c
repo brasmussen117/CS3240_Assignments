@@ -3,40 +3,36 @@
 int main(int argc, char const *argv[])
 {
 	/* check for necessary arguments ------------------------------- */
-    if (argc > 1) // check that no extra args given
-    {
-        errno = E2BIG;
-        fprintf(stderr, "./search::main: Arg list too long\n");
-        return 1;
-    }
+	if (argc > 1) // check that no extra args given
+	{
+		errno = E2BIG;
+		fprintf(stderr, "./search::main: Arg list too long\n");
+		return 1;
+	}
 
 	/* open index -------------------------------------------------- */
 	FILE *indexbin = fopen(indexbinfn, "rb");
 
 	if (indexbin == NULL) // check that fopen was sucessful
-    {
-        if (errno == ENOENT)
-        {
-            fprintf(stderr, "./search: cannot open(\"%s\"): No such file or directory\n", argv[1]);
-        }
-        else
-        {
+	{
+		if (errno == ENOENT)
+		{
+			fprintf(stderr, "./search: cannot open(\"%s\"): No such file or directory\n", argv[1]);
+		}
+		else
+		{
 			perror("./search::main: cannot open file");
-        }
-        return 1;
-    }
+		}
+		return 1;
+	}
 
 	/* build index from bin ---------------------------------------- */
-	uint32_t *indexsize = malloc(sizeof(uint32_t)); // number of indices in bin
+	uint32_t *indexsize = malloc(sizeof(uint32_t));			  // number of indices in bin
 	if (fread(indexsize, sizeof(uint32_t), 1, indexbin) != 1) // try to read indexsize, handle if not able
 	{
 		perror("./search::main: cannot read file");
 		return 2;
 	}
-
-	// CARDARR *cards = malloc(sizeof(CARDARR));
-	// cards->arr = malloc(sizeof(CARD*) * *indexsize);
-	// cards->size = *indexsize;
 
 	INDEXARR *indices = malloc(sizeof(INDEXARR));
 	indices->arr = malloc(sizeof(INDEX *) * *indexsize);
@@ -55,22 +51,18 @@ int main(int argc, char const *argv[])
 			fprintf(stderr, "./search::main: cannot read name: loop-%ld", i);
 			return 2;
 		}
-		
+
 		if (fread(indices->arr[i]->offset, sizeof(long), 1, indexbin) != 1)
 		{
 			fprintf(stderr, "./search::main: cannot read offset: loop-%ld", i);
 			return 2;
 		}
-		
-		
 	}
 	free(len);
-	
-	
 
 	/* UI loop ----------------------------------------------------- */
 	char *userinput[100]; // take user input
-	int result; // get result of search
+	int result;			  // get result of search
 
 	while ((userinput != "q") && (userinput != "Q"))
 	{
@@ -86,9 +78,8 @@ int main(int argc, char const *argv[])
 		{
 			fprintf(stdout, "./search: '%s' not found!", userinput);
 		}
-		
 	}
-	
+
 	/* free memory ------------------------------------------------- */
 	freeindices(indices);
 
@@ -98,7 +89,8 @@ int main(int argc, char const *argv[])
 /* read cards bin
 	return new CARD*
  */
-CARD *readCardBin(char *cardbin_filename, INDEX *index){
+CARD *readCardBin(char *cardbin_filename, INDEX *index)
+{
 	FILE *cardbin = fopen(cardbin_filename, "rb");
 	if (cardbin == NULL)
 	{
@@ -119,80 +111,85 @@ CARD *readCardBin(char *cardbin_filename, INDEX *index){
 	uint32_t *rarity_uint32_t;
 	RARITY rarity;
 
+	// #region read fields
+
 	/* id field */
 	if (fread(id, sizeof(uint32_t), 1, cardbin) != 1)
 	{
 		perror("./search::readCardBin: failed to read id field");
 	}
-	
+
 	/* cost len */
 	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
 	{
 		perror("./search::readCardBin: failed to read cost-len");
 	}
-	
+
 	/* cost field */
 	if (fread(cost, sizeof(char), (size_t)*len, cardbin) != *len)
 	{
 		perror("./search::readCardBin: failed to read cost field");
 	}
-	
+
 	/* converted_cost field */
 	if (fread(converted_cost, sizeof(uint32_t), 1, cardbin) != 1)
 	{
 		perror("./search::readCardBin: failed to read converted_cost field");
 	}
-	
+
 	/* type len */
 	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
 	{
 		perror("./search::readCardBin: failed to read type-len");
 	}
-	
+
 	/* type field */
 	if (fread(type, sizeof(char), (size_t)*len, cardbin) != len)
 	{
 		perror("./search::readCardBin: failed to read type field");
 	}
-	
+
 	/* text len */
 	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
 	{
 		perror("./search::readCardBin: failed to read text-len");
 	}
-	
+
 	/* text field */
 	if (fread(text, sizeof(char), (size_t)*len, cardbin) != len)
 	{
 		perror("./search::readCardBin: failed to read text field");
 	}
-	
+
 	/* stats len */
 	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
 	{
 		perror("./search::readCardBin: failed to read stats-len");
 	}
-	
+
 	/* stats field */
 	if (fread(stats, sizeof(char), (size_t)*len, cardbin) != len)
 	{
 		perror("./search::readCardBin: failed to read stats field");
 	}
-	
+
 	/* rarirty_uint32_t field */
 	if (fread(rarity_uint32_t, sizeof(uint32_t), 1, cardbin) != 1)
 	{
 		perror("./search::readCardBin: failed to read rarity field");
 	}
 	rarity = (RARITY)rarity_uint32_t; // convert uint32_t to rarity
+	
+	// #endregion
 
-	return cardBuilder((unsigned int)*id, index->name, cost, (unsigned int)*converted_cost, type, text, stats, rarity);
+	return cardBuilder((unsigned int)*id, strdup(index->name), cost, (unsigned int)*converted_cost, type, text, stats, rarity);
 }
 
 /* custom comparator for bsearch 
 	returns strmp of index entry names 
 */
-int comparIndexNames(const void *indexA, const void *indexB){
+int comparIndexNames(const void *indexA, const void *indexB)
+{
 	const INDEX *A = *(INDEX **)indexA;
 	const INDEX *B = *(INDEX **)indexB;
 	return strcmp(A->name, B->name);
@@ -202,23 +199,24 @@ int comparIndexNames(const void *indexA, const void *indexB){
 	return -1 if no match
 		0 if good match
  */
-int search(char *userinput, INDEXARR *indices){
+int search(char *userinput, INDEXARR *indices)
+{
 	INDEX *found_index = NULL;
 	CARD *found_card = NULL;
 
-	found_index = bsearch(userinput, indices->arr, (size_t)indices->size, sizeof(INDEX*), comparIndexNames);
+	found_index = bsearch(userinput, indices->arr, (size_t)indices->size, sizeof(INDEX *), comparIndexNames);
 
 	if (found_index == NULL)
 	{
 		return -1; // failed to find match
 	}
-	
+
 	found_card = readCardBin(cardbinfn, found_index);
 
 	printCard(found_card);
 
-	free(found_card);
-	
+	freeCard(found_card);
+
 	return 0;
 }
 
