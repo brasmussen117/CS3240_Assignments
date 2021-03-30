@@ -10,6 +10,8 @@
 /* defs */
 #define cardbinfn "bin/cards.bin"
 #define indexbinfn "bin/index.bin"
+#define TERMINAL 1 // isatty(STDIN_FILENO) == 1
+#define REDIRECT 0 // isatty(STDIN_FILENO) == 0
 
 const char *rarityStrArr[] = { // array for string values of RARITY enum
     "common",
