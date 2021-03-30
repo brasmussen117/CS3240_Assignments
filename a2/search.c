@@ -8,7 +8,7 @@ int main(int argc, char const *argv[])
     if (argc > 1) // check that no extra args given
     {
         errno = E2BIG;
-        fprintf(stderr, "./search: Arg list too long\n");
+        fprintf(stderr, "./search::main: Arg list too long\n");
         return 1;
     }
 
@@ -23,7 +23,7 @@ int main(int argc, char const *argv[])
         }
         else
         {
-			perror("./search: cannot open file");
+			perror("./search::main: cannot open file");
         }
         return 1;
     }
@@ -32,7 +32,7 @@ int main(int argc, char const *argv[])
 	uint32_t *indexsize = malloc(sizeof(uint32_t)); // number of indices in bin
 	if (fread(indexsize, sizeof(uint32_t), 1, indexbin) != 1) // try to read indexsize, handle if not able
 	{
-		perror("./search: cannot read file");
+		perror("./search::main: cannot read file");
 		return 2;
 	}
 
@@ -48,19 +48,19 @@ int main(int argc, char const *argv[])
 	{
 		if (fread(len, sizeof(uint32_t), 1, indexbin) != 1) // try to read strlen
 		{
-			fprintf(stderr, "./search: cannot read size: loop-%ld", i);
+			fprintf(stderr, "./search::main: cannot read size: loop-%ld", i);
 			return 2;
 		}
 
 		if (fread(indices->arr[i]->name, sizeof(char), *len, indexbin) != len) // try to read name
 		{
-			fprintf(stderr, "./search: cannot read name: loop-%ld", i);
+			fprintf(stderr, "./search::main: cannot read name: loop-%ld", i);
 			return 2;
 		}
 		
 		if (fread(indices->arr[i]->offset, sizeof(long), 1, indexbin) != 1)
 		{
-			fprintf(stderr, "./search: cannot read offset: loop-%ld", i);
+			fprintf(stderr, "./search::main: cannot read offset: loop-%ld", i);
 			return 2;
 		}
 		
@@ -75,7 +75,12 @@ int main(int argc, char const *argv[])
 	while ((userinput != "q") && (userinput != "Q"))
 	{
 		fprintf(stdout, ">>");
-		scanf("%s", userinput);
+		if (scanf("%s", userinput) <= 0)
+		{
+			perror("./search::main: scanf failed to get user input");
+			return 1;
+		}
+
 
 
 	}
@@ -87,9 +92,6 @@ int main(int argc, char const *argv[])
 	return 0;
 }
 
-// int getuserinput(){
-
-// }
 
 /* 
 # Search
