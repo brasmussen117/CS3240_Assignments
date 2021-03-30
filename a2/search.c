@@ -36,10 +36,12 @@ int main(int argc, char const *argv[])
 		return 2;
 	}
 
-	INDEX **indices = malloc(sizeof(INDEX*) * *indexsize);
 	// CARDARR *cards = malloc(sizeof(CARDARR));
 	// cards->arr = malloc(sizeof(CARD*) * *indexsize);
 	// cards->size = *indexsize;
+
+	INDEXARR *indices = malloc(sizeof(INDEXARR));
+	indices->arr = malloc(sizeof(INDEX *) * *indexsize);
 	uint32_t *len = malloc(sizeof(uint32_t));
 
 	for (uint32_t i = 0; i < *indexsize; i++)
@@ -50,13 +52,13 @@ int main(int argc, char const *argv[])
 			return 2;
 		}
 
-		if (fread(indices[i]->name, sizeof(char), *len, indexbin) != len) // try to read name
+		if (fread(indices->arr[i]->name, sizeof(char), *len, indexbin) != len) // try to read name
 		{
 			fprintf(stderr, "./search: cannot read name: loop-%ld", i);
 			return 2;
 		}
 		
-		if (fread(indices[i]->offset, sizeof(long), 1, indexbin) != 1)
+		if (fread(indices->arr[i]->offset, sizeof(long), 1, indexbin) != 1)
 		{
 			fprintf(stderr, "./search: cannot read offset: loop-%ld", i);
 			return 2;
@@ -78,7 +80,9 @@ int main(int argc, char const *argv[])
 
 	}
 	
-	// TODO: Need to free the index
+	/* free memory ------------------------------------------------- */
+	freeindices(indices);
+	// freeCard(card); TODO:
 
 	return 0;
 }

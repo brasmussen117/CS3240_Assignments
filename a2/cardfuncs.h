@@ -11,11 +11,17 @@
 #define cardbinfn "bin/cards"
 #define indexbinfn "bin/index"
 
-/* structs --------------------------------------------------------- */
+const char *rarityStrArr[] = { // array for string values of RARITY enum
+    "common",
+    "uncommon",
+    "rare",
+    "mythic"};
+
+/* #region structs ------------------------------------------------- */
 typedef struct cardarr // struct for holding array of cards and the size
 {
-	CARD **arr;
-	size_t size;
+    CARD **arr;
+    size_t size;
 } CARDARR;
 
 typedef struct index // struct for index entry values
@@ -29,60 +35,28 @@ typedef struct indexarr
     INDEX **arr;
     uint32_t *size;
 } INDEXARR;
+/* #endregion */
 
-
-const char* rarityStrArr[] = { // array for string values of RARITY enum
-	"common",
-	"uncommon",
-	"rare",
-	"mythic"
-};
-
-/* global vars ----------------------------------------------------- */
+/* #region global vars --------------------------------------------- */
 
 const int rarityStrArrLen = 4; // size of rarityStrArr[]
-
 
 /* horizontal border */
 const char *hline = "----------------------------------------------------";
 
 char *zptr_char = "\0"; // a single reusable pointer for holding a zero char
+/* #endregion */
 
-/* frees a CARD* and char* fields
-    checks if certain fields are pointing to zptr_char:
-        cost, text, stats
- */
-void freeCard(CARD *cardtofree)
+/* #region  FUNCTIONS ---------------------------------------------- */
+
+/* #region helper functions */
+
+/* convert uint32_t to ptr */
+uint32_t *convtoptr_uint32_t(uint32_t i)
 {
-    /* free the cards's char* fields */
-    free(cardtofree->name);
-    if (cardtofree->cost != zptr_char)
-    {
-        free(cardtofree->cost);
-    }
-    free(cardtofree->type);
-    if (cardtofree->text != zptr_char)
-    {
-        free(cardtofree->text);
-    }
-    if (cardtofree->stats != zptr_char)
-    {
-        free(cardtofree->stats);
-    }
-
-    free(cardtofree); // free the card
-}
-
-/* frees full CARD** array */
-void freeCards(CARDARR *cards)
-{
-    /* loop to free each of the cards */
-    for (size_t i = 0; i < cards->size; i++)
-    {
-        freeCard(cards->arr[i]);
-    }
-    free(cards->arr); // free the full array
-    free(cards);
+    uint32_t *ret = malloc(sizeof(uint32_t));
+    *ret = i;
+    return ret;
 }
 
 /* takes 2 char* and moves  */
@@ -177,6 +151,297 @@ char *cleanstr(char *s)
 
         return zptr_char; // return pointer to zero
     }
+}
+
+/* #endregion */
+
+/* #region  index funcs */
+
+/* create INDEX* from fields */
+INDEX *indexbuilder(char *name, long offset)
+{
+    INDEX *newentry = malloc(sizeof(INDEX));
+
+    newentry->offset = malloc(sizeof(long));
+    *newentry->offset = offset;
+    newentry->name = name;
+
+    return newentry;
+}
+
+/* free INDEXARR *indices */
+void freeindices(INDEXARR *indices)
+{
+    for (size_t i = 0; i < *indices->size; i++)
+    {
+        free(indices->arr[i]->offset);
+        free(indices->arr[i]);
+    }
+    free(indices->arr);
+    free(indices->size);
+    free(indices);
+}
+/* #endregion */
+
+/* #region parser funcs */
+
+/* write cards to bin file */
+INDEXARR *writeCardBin(FILE *output_card_file, CARDARR *cards)
+{
+    INDEXARR *indices = malloc(sizeof(INDEXARR));
+    indices->arr = malloc(sizeof(INDEX*) * cards->size);
+    indices->size = malloc(sizeof(uint32_t));
+    *indices->size = (uint32_t)cards->size;
+
+    for (size_t i = 0; i < cards->size; i++)
+    {
+        /* make the index entries ---------------------------------- */
+        indices->arr[i] = indexbuilder(cards->arr[i]->name, ftell(output_card_file));
+
+        // #region write card fields -------------------------------
+
+        // #region id - unsigned int
+        uint32_t *idout = convtoptr_uint32_t((uint32_t)cards->arr[i]->id);
+        if (!fwrite(idout,
+                    sizeof(uint32_t),
+                    1,
+                    output_card_file))
+        {
+            fprintf(stderr, "parser::writeCardBin: id field not written: %d\n", cards->arr[i]->id);
+            exit(EXIT_FAILURE);
+        }
+        free(idout);
+        // #endregion
+
+        // #region cost - char*
+        uint32_t *cost_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->cost));
+        if (!fwrite(cost_len,
+                    sizeof(uint32_t),
+                    1,
+                    output_card_file))
+        {
+            fprintf(stderr, "parser::writeCardBin: cost size not written: %s\n", cards->arr[i]->cost);
+            exit(EXIT_FAILURE);
+        }
+
+        if (cost_len > 0) // check if field was blank
+        {
+            if (
+                fwrite(cards->arr[i]->cost,
+                       sizeof(char),
+                       *cost_len,
+                       output_card_file) != *cost_len)
+            {
+                perror("parser::writeCardBin: cost field not written");
+                exit(EXIT_FAILURE);
+            }
+        }
+        free(cost_len);
+        // #endregion
+
+        // #region converted_cost - unsigned int
+        uint32_t *converted_cost_out = convtoptr_uint32_t((uint32_t)cards->arr[i]->converted_cost);
+        if (!fwrite(converted_cost_out,
+                    sizeof(uint32_t),
+                    1,
+                    output_card_file))
+        {
+            fprintf(stderr, "parser::writeCardBin: converted_cost field not written: %d\n", cards->arr[i]->converted_cost);
+            exit(EXIT_FAILURE);
+        }
+        free(converted_cost_out);
+        // #endregion
+
+        // #region type - char*
+        uint32_t *type_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->type));
+        if (!fwrite(type_len,
+                    sizeof(uint32_t),
+                    1,
+                    output_card_file))
+        {
+            fprintf(stderr, "parser::writeCardBin: type size not written: %s\n", cards->arr[i]->type);
+            exit(EXIT_FAILURE);
+        }
+        free(type_len);
+
+        if (!fwrite(cards->arr[i]->type,
+                    sizeof(char),
+                    strlen(cards->arr[i]->type),
+                    output_card_file))
+        {
+            fprintf(stderr, "parser::writeCardBin: type field not written: %s\n", cards->arr[i]->type);
+            exit(EXIT_FAILURE);
+        }
+        // #endregion
+
+        // #region text - char*
+        uint32_t *text_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->text));
+        if (!fwrite(text_len,
+                    sizeof(uint32_t),
+                    1,
+                    output_card_file))
+        {
+            fprintf(stderr, "parser::writeCardBin: text size not written: %s\n", cards->arr[i]->text);
+            exit(EXIT_FAILURE);
+        }
+        if (text_len > 0) // check if field was blank
+        {
+            if (!fwrite(cards->arr[i]->text,
+                        sizeof(char),
+                        strlen(cards->arr[i]->text),
+                        output_card_file))
+            {
+                fprintf(stderr, "parser::writeCardBin: text field not written: %s\n", cards->arr[i]->text);
+                exit(EXIT_FAILURE);
+            }
+        }
+        free(text_len);
+        // #endregion
+
+        // #region stats - char*
+        uint32_t *stats_len = NULL;
+        if (cards->arr[i]->stats != zptr_char) // check if field was blank, if so remain zero
+        {
+            stats_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->stats));
+        } else
+        {
+            stats_len = convtoptr_uint32_t(0);
+        }
+
+        if (fwrite(stats_len,
+                    sizeof(uint32_t),
+                    1,
+                    output_card_file) != 1) // try to write, handle if fail
+        {
+            fprintf(stderr, "parser::writeCardBin: stats size not written: %s\n", cards->arr[i]->stats);
+            exit(EXIT_FAILURE);
+        }
+
+        if (stats_len > 0) // check if anything to write
+        {
+            if (fwrite(cards->arr[i]->stats,
+                    sizeof(char),
+                    *stats_len,
+                    output_card_file) 
+                != *stats_len) // try to write, handle if fail
+            {
+                perror("parser::writeCardBin: stats field not written");
+                exit(EXIT_FAILURE);
+            }
+        }
+        
+        free(stats_len);
+        // #endregion
+
+        // #region rarity
+        uint32_t *rarity_out = convtoptr_uint32_t((uint32_t)cards->arr[i]->rarity);
+        if (!fwrite(rarity_out,
+                    sizeof(uint32_t),
+                    1,
+                    output_card_file))
+        {
+            fprintf(stderr, "parser::writeCardBin: rarity field not written: %d\n", cards->arr[i]->rarity);
+            exit(EXIT_FAILURE);
+        }
+        free(rarity_out);
+        // #endregion rarity
+
+        // #endregion write card fields
+    
+    }
+
+    return indices;
+}
+
+/* write card index to bin file */
+void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
+{
+    /* write the size of the index - uint32_t ---------------------- */
+    if (!fwrite(indices->size,
+                sizeof(uint32_t),
+                1,
+                output_index_file))
+    {
+        fprintf(stderr, "parser::writeIndexBin: index size not written: %d\n", *indices->size);
+        exit(EXIT_FAILURE);
+    }
+
+    /* loop and write each index entry ----------------------------- */
+    for (size_t i = 0; i < *indices->size; i++)
+    {
+        /* name size - uint32_t */
+        uint32_t *name_len = convtoptr_uint32_t((uint32_t)strlen(indices->arr[i]->name));
+        if (!fwrite(name_len,
+                    sizeof(uint32_t),
+                    1,
+                    output_index_file))
+        {
+            fprintf(stderr, "parser::writeIndexBin: name size not written: %s\n", indices->arr[i]->name);
+            exit(EXIT_FAILURE);
+        }
+        free(name_len);
+
+        /* name - char* */
+        if (!fwrite(indices->arr[i]->name,
+                    sizeof(char),
+                    strlen(indices->arr[i]->name),
+                    output_index_file))
+        {
+            fprintf(stderr, "parser::writeIndexBin: name field not written: %s\n", indices->arr[i]->name);
+            exit(EXIT_FAILURE);
+        }
+
+        /* offset - long */
+        if (!fwrite(indices->arr[i]->offset,
+                    sizeof(long),
+                    1,
+                    output_index_file))
+        {
+            fprintf(stderr, "parser::writeIndexBin: offset field not written: %ln\n", indices->arr[i]->offset);
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+
+/* #endregion */
+
+/* #region card funcs */
+/* frees a CARD* and char* fields
+    checks if certain fields are pointing to zptr_char:
+        cost, text, stats
+ */
+void freeCard(CARD *cardtofree)
+{
+    /* free the cards's char* fields */
+    free(cardtofree->name);
+    if (cardtofree->cost != zptr_char)
+    {
+        free(cardtofree->cost);
+    }
+    free(cardtofree->type);
+    if (cardtofree->text != zptr_char)
+    {
+        free(cardtofree->text);
+    }
+    if (cardtofree->stats != zptr_char)
+    {
+        free(cardtofree->stats);
+    }
+
+    free(cardtofree); // free the card
+}
+
+/* frees full CARD** array */
+void freeCards(CARDARR *cards)
+{
+    /* loop to free each of the cards */
+    for (size_t i = 0; i < cards->size; i++)
+    {
+        freeCard(cards->arr[i]);
+    }
+    free(cards->arr); // free the full array
+    free(cards);
 }
 
 /* check new card against cards
@@ -282,7 +547,7 @@ void closeCardGap(CARDARR *cards, int index)
         &cards->arr[index],
         &cards->arr[index + 1],
         (sizeof(CARD *) * (cards->size - index - 1)));
-        cards->size--;
+    cards->size--;
 }
 
 /* print a card in req'd format */
@@ -388,7 +653,7 @@ CARD *parse_line_csv(char *buf)
 
     /* clean up, build the new card, and return ---------------------- */
     rarity = strToRARITY(cleanstr(rarityStr)); // clean str, convert rarityStr to RARITY
-    free(rarityStr); // free rarityStr
+    free(rarityStr);                           // free rarityStr
 
     free(free_line); // free memory
 
@@ -446,7 +711,7 @@ CARDARR *parse_file_csv(FILE *input_file)
         if (cards->size > 0) // check if first loop
         {
             dup = checkDuplicateCard(newCard, cards); // check for duplicate
-            if (dup != -1) // if dup returns a match then handle it
+            if (dup != -1)                            // if dup returns a match then handle it
             {
                 if (dup == -2) // check if new entry is not superseding, skip this entry if not
                 {
@@ -458,14 +723,17 @@ CARDARR *parse_file_csv(FILE *input_file)
                     closeCardGap(cards, dup); // close the gap to remove obs card
                 }
             } // else no duplicate found,  proceed
-        } // else first loop, proceed
+        }     // else first loop, proceed
 
         cards->arr = realloc(cards->arr, sizeof(CARD *) * ++cards->size); // realloc cards, pre-increment size
 
         cards->arr[cards->size - 1] = newCard; // put newCard into cards
-    } // end read loop
+    }                                          // end read loop
 
     free(buf);
 
     return cards;
 }
+/* #endregion */
+
+/* #endregion FUNCTIONS */
