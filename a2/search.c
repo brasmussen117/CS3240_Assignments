@@ -15,7 +15,7 @@ int main(int argc, char const *argv[])
 	}
 
 	/* open index -------------------------------------------------- */
-	FILE *indexbin = fopen(indexbinfn, "rb");
+	FILE *indexbin = fopen(INDEXBINFN, "rb");
 
 	if (indexbin == NULL) // check that fopen was sucessful
 	{
@@ -40,20 +40,28 @@ int main(int argc, char const *argv[])
 	}
 
 	/* UI loop ----------------------------------------------------- */
-	char userinput[100]; // take user input
+	char userinput[MAXLINE]; // take user input
 	int result;			 // get result of search
 
-	while (!((strlen(userinput) == 1) && ((*userinput == 'q') || (*userinput == 'Q'))))
+	while (1)
 	{
 		fprintf(stdout, ">> "); // display prompt
-		if (fscanf(stdin,"%s", userinput) <= 0)
+		if (fgets(userinput, MAXLINE, stdin) == NULL) // fscanf(stdin,"%s", userinput) <= 0
 		{
-			perror("./search::main: scanf failed to get user input");
+			perror("./search::main: fgets failed to get user input");
+			return 2;
 		}
 
-		if (isatty(STDIN_FILENO) == REDIRECT)
+		strstr(userinput, "\n")[0] == '\0';
+
+		if (isatty(STDIN_FILENO) == REDIRECT) // check if input is redirected
 		{
 			fprintf(stdout, "%s\n", userinput);
+		}
+
+		if ((strlen(userinput) == 1) && ((*userinput == 'q') || (*userinput == 'Q'))) // check for escape character
+		{
+			break;
 		}
 
 		result = search(userinput, indices);
@@ -237,7 +245,7 @@ CARD *readCardBin(char *cardbin_filename, INDEX *index)
 */
 int comparIndexNames(const void *indexA, const void *indexB)
 {
-	const INDEX *A = *(INDEXARR.arr)indexA;
+	const INDEX *A = *(INDEX **)indexA;
 	const INDEX *B = *(INDEX **)indexB;
 	return strcmp(A->name, B->name);
 }
@@ -248,20 +256,24 @@ int comparIndexNames(const void *indexA, const void *indexB)
  */
 int search(char *userinput, INDEXARR *indices)
 {
+	INDEX *input_index = malloc(sizeof(INDEX));
+	input_index->name = userinput;
+
 	INDEX *found_index = NULL;
 	CARD *found_card = NULL;
 
-	found_index = bsearch(userinput, indices->arr, (size_t)indices->size, sizeof(INDEX *), comparIndexNames);
+	found_index = bsearch(input_index, indices->arr[0], (size_t)*indices->size, sizeof(INDEX *), comparIndexNames);
 
 	if (found_index == NULL)
 	{
 		return -1; // failed to find match
 	}
 
-	found_card = readCardBin(cardbinfn, found_index);
+	found_card = readCardBin(CARDBINFN, found_index);
 
 	printCard(found_card);
 
+	free(input_index);
 	freeCard(found_card);
 
 	return 0;

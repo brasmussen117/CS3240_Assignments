@@ -53,11 +53,11 @@ int main(int argc, char const *argv[])
     qsort(cards->arr, cards->size, sizeof(CARD *), comparCardName);
 
     /* write cards to bin file ------------------------------------- */
-    FILE *output_card_file = fopen(cardbinfn, "wb"); // create file with above filename
+    FILE *output_card_file = fopen(CARDBINFN, "wb"); // create file with above filename
 
     if (!output_card_file)
     {
-        fprintf(stderr, "parser::main: file not successfully created: (\"%s\")\n", cardbinfn);
+        fprintf(stderr, "parser::main: file not successfully created: (\"%s\")\n", CARDBINFN);
         return 3;
     }
 
@@ -72,23 +72,23 @@ int main(int argc, char const *argv[])
 
     if (fclose(output_card_file) != 0)
     {
-        fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", cardbinfn);
+        fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", CARDBINFN);
         return 3;
     }
 
     /* write index to bin file ------------------------------------- */
-    FILE *output_index_file = fopen(indexbinfn, "wb");
+    FILE *output_index_file = fopen(INDEXBINFN, "wb");
 
     writeIndexBin(output_index_file, indices);
 
     if (fclose(output_index_file) != 0)
     {
-        fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", indexbinfn);
+        fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", INDEXBINFN);
         return 3;
     }
 
     /* print success message --------------------------------------- */
-    fprintf(stdout, "Successfully created %s and %s\n", cardbinfn, indexbinfn);
+    fprintf(stdout, "Successfully created %s and %s\n", CARDBINFN, INDEXBINFN);
 
     /* free memory ------------------------------------------------- */
     freeCards(cards);

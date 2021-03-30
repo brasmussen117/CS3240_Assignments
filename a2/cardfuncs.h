@@ -8,16 +8,11 @@
 #include <stdint.h>
 
 /* defs */
-#define cardbinfn "bin/cards.bin"
-#define indexbinfn "bin/index.bin"
+#define MAXLINE 32 // max input length
+#define CARDBINFN "bin/cards.bin" // cards binary filename
+#define INDEXBINFN "bin/index.bin" // index binary filename
 #define TERMINAL 1 // isatty(STDIN_FILENO) == 1
 #define REDIRECT 0 // isatty(STDIN_FILENO) == 0
-
-const char *rarityStrArr[] = { // array for string values of RARITY enum
-    "common",
-    "uncommon",
-    "rare",
-    "mythic"};
 
 /* #region structs ------------------------------------------------- */
 typedef struct cardarr // struct for holding array of cards and the size
@@ -40,6 +35,12 @@ typedef struct indexarr
 /* #endregion */
 
 /* #region global vars --------------------------------------------- */
+
+const char *rarityStrArr[] = { // array for string values of RARITY enum
+    "common",
+    "uncommon",
+    "rare",
+    "mythic"};
 
 const int rarityStrArrLen = 4; // size of rarityStrArr[]
 
@@ -404,7 +405,6 @@ void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
         }
     }
 }
-
 
 /* #endregion */
 
