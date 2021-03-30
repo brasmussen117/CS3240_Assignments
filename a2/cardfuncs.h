@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 /* defs */
-#define cardbinfn "bin/cardbin"
-#define indexbinfn "bin/indexbin"
+#define cardbinfn "bin/cards"
+#define indexbinfn "bin/index"
 
 /* structs --------------------------------------------------------- */
 typedef struct cardarr // struct for holding array of cards and the size
@@ -388,7 +388,7 @@ CARD *parse_line_csv(char *buf)
 
     /* clean up, build the new card, and return ---------------------- */
     rarity = strToRARITY(cleanstr(rarityStr)); // clean str, convert rarityStr to RARITY
-    free(rarityStr);                           // free rarityStr
+    free(rarityStr); // free rarityStr
 
     free(free_line); // free memory
 

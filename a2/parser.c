@@ -2,7 +2,6 @@
 
 /* func prototypes */
 void freeindices(INDEXARR *);
-void freeindex(INDEX *);
 INDEXARR *writeCardBin(FILE *, CARDARR *);
 void writeIndexBin(FILE *, INDEXARR *);
 char *cleanfilename(char *);
@@ -84,7 +83,7 @@ int main(int argc, char const *argv[])
     }
 
     /* write index to bin file ------------------------------------- */
-    FILE *output_index_file = fopen("_indexbin", "wb");
+    FILE *output_index_file = fopen(indexbinfn, "wb");
 
     writeIndexBin(output_index_file, indices);
 
@@ -99,6 +98,7 @@ int main(int argc, char const *argv[])
 
     /* free memory ------------------------------------------------- */
     freeCards(cards);
+    freeindices(indices);
 
     return 0;
 }
@@ -107,15 +107,12 @@ int main(int argc, char const *argv[])
 void freeindices(INDEXARR *indices){
     for (size_t i = 0; i < *indices->size; i++)
     {
-        freeindex(indices->arr[i]);
+        free(indices->arr[i]->offset);
+        free(indices->arr[i]);
     }
+    free(indices->arr);
+    free(indices->size);
     free(indices);
-}
-
-/* free index entry */
-void freeindex(INDEX *entry){
-    free(entry->name);
-    free(entry->offset);
 }
 
 /* convert uint32_t to ptr */
@@ -137,7 +134,6 @@ INDEXARR *writeCardBin(FILE *output_card_file, CARDARR *cards)
     for (size_t i = 0; i < cards->size; i++)
     {
         /* make the index entries ---------------------------------- */
-        indices = realloc(indices, (sizeof(INDEX *) * (i + 1)));
         indices->arr[i] = malloc(sizeof(INDEX));
         indices->arr[i]->offset = malloc(sizeof(long));
         *indices->arr[i]->offset = ftell(output_card_file);
@@ -292,6 +288,7 @@ INDEXARR *writeCardBin(FILE *output_card_file, CARDARR *cards)
         // #endregion rarity
 
         // #endregion write card fields
+    
     }
 
     return indices;
