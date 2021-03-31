@@ -172,9 +172,7 @@ INDEX *indexbuilder(char *name, long offset)
     return newentry;
 }
 
-/* free INDEXARR *indices
-    does not free name field as this refers to CARD.name field, must be freed there
- */
+/* free INDEXARR *indices */
 void freeindices(INDEXARR *indices)
 {
     for (size_t i = 0; i < *indices->size; i++)
@@ -186,21 +184,6 @@ void freeindices(INDEXARR *indices)
     free(indices->size);
     free(indices);
 }
-
-/* free INDEXARR *indices - including name field */
-void freeindices_name(INDEXARR *indices)
-{
-    for (size_t i = 0; i < *indices->size; i++)
-    {
-        free(indices->arr[i]->offset);
-        free(indices->arr[i]->name);
-        free(indices->arr[i]);
-    }
-    free(indices->arr);
-    free(indices->size);
-    free(indices);
-}
-
 /* #endregion index funcs */
 
 /* #region parser funcs */
