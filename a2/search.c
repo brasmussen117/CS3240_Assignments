@@ -211,11 +211,12 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	}
 
 	/* cost field */
-	cost = malloc(sizeof(char) * *len);
+	cost = malloc(sizeof(char) * *len + 1);
 	if (fread(cost, sizeof(char), (size_t)*len, cardbin) != *len)
 	{
 		perror("./search::readCardBin: failed to read cost field");
 	}
+	cost[*len] = 0; // null terminate
 
 	/* converted_cost field */
 	if (fread(converted_cost, sizeof(uint32_t), 1, cardbin) != 1)
@@ -230,11 +231,12 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	}
 
 	/* type field */
-	type = malloc(sizeof(char) * *len);
+	type = malloc(sizeof(char) * *len + 1);
 	if (fread(type, sizeof(char), (size_t)*len, cardbin) != *len)
 	{
 		perror("./search::readCardBin: failed to read type field");
 	}
+	type[*len] = 0; // null terminate
 
 	/* text len */
 	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
@@ -243,11 +245,12 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	}
 
 	/* text field */
-	text = malloc(sizeof(char) * *len);
+	text = malloc(sizeof(char) * *len + 1);
 	if (fread(text, sizeof(char), (size_t)*len, cardbin) != *len)
 	{
 		perror("./search::readCardBin: failed to read text field");
 	}
+	text[*len] = 0; // null terminate
 
 	/* stats len */
 	if (fread(len, sizeof(uint32_t), 1, cardbin) != 1)
@@ -255,12 +258,12 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 		perror("./search::readCardBin: failed to read stats-len");
 	}
 
-	/* stats field */
-	stats = malloc(sizeof(char) * *len);
+	stats = malloc(sizeof(char) * *len + 1);
 	if (fread(stats, sizeof(char), (size_t)*len, cardbin) != *len)
 	{
 		perror("./search::readCardBin: failed to read stats field");
 	}
+	stats[*len] = 0; // null terminate
 
 	/* rarirty_uint32_t field */
 	if (fread(rarity_uint32_t, sizeof(uint32_t), 1, cardbin) != 1)
@@ -275,6 +278,7 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	CARD *newcard = cardBuilder((unsigned int)*id, strndup(index[0]->name, strlen(index[0]->name) + 1), cost, (unsigned int)*converted_cost, type, text, stats, rarity);
 
 	/* free memory */
+	free(len);
 	free(id);
 	free(converted_cost);
 	free(rarity_uint32_t);
@@ -319,7 +323,6 @@ int search(char *userinput, INDEXARR *indices)
 	{
 		exit(EXIT_FAILURE);
 	}
-	
 
 	printCard(found_card);
 
