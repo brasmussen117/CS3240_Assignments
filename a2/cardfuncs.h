@@ -505,9 +505,9 @@ CARD *cardBuilder(unsigned id, char *name, char *cost, unsigned converted_cost, 
     }
     else // id is 0, or name is null
     {
-        fprintf(stderr, "\nError: ID/Name field invalid: %d, %s\n", id, name);
+        fprintf(stderr, "cardfuncs.h::cardBuilder: ID/Name field invalid: %d, %s\n", id, name);
         free(card);
-        return NULL;
+        exit(EXIT_FAILURE);
     }
     return card;
 }

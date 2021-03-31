@@ -1,6 +1,7 @@
 #include "cardfuncs.h"
 
 /* function prototypes */
+void cleanInput(char[]);
 int search(char *, INDEXARR *);
 INDEXARR *readIndexBin(FILE *);
 
@@ -39,36 +40,59 @@ int main(int argc, char const *argv[])
 		perror("./search::main: failed to close index.bin");
 	}
 
-	/* UI loop ----------------------------------------------------- */
+	/* I/O loop ---------------------------------------------------- */
 	char userinput[MAXLINE]; // take user input
 	int result;			 // get result of search
 
-	while (1)
+	if (isatty(STDIN_FILENO) == REDIRECT) // check if input is redirected
 	{
 		fprintf(stdout, ">> "); // display prompt
-		if (fgets(userinput, MAXLINE, stdin) == NULL) // fscanf(stdin,"%s", userinput) <= 0
+		fgets(userinput, MAXLINE, stdin);
+		while (userinput != NULL)
 		{
-			perror("./search::main: fgets failed to get user input");
-			return 2;
+			fprintf(stdout, "%s", userinput); // echo input
+
+			cleanInput(userinput); // strip non-chars
+
+			if ((strlen(userinput) == 1) && ((*userinput == 'q') || (*userinput == 'Q')))
+			{
+				break;
+			}
+			
+			result = search(userinput, indices);
+
+			if (result == -1)
+			{
+				fprintf(stdout, "./search: '%s' not found!\n", userinput);
+			}
+
+			fprintf(stdout, ">> "); // display prompt
+			fgets(userinput, MAXLINE, stdin);
 		}
-
-		strstr(userinput, "\n")[0] == '\0';
-
-		if (isatty(STDIN_FILENO) == REDIRECT) // check if input is redirected
+	} else // input is terminal
+	{
+		while (1)
 		{
-			fprintf(stdout, "%s\n", userinput);
-		}
+			fprintf(stdout, ">> "); // display prompt
+			if (fgets(userinput, MAXLINE, stdin) == NULL) // try to get user input
+			{
+				perror("./search::main: fgets failed to get user input");
+				return 2;
+			}
+			
+			cleanInput(userinput);
 
-		if ((strlen(userinput) == 1) && ((*userinput == 'q') || (*userinput == 'Q'))) // check for escape character
-		{
-			break;
-		}
+			if ((strlen(userinput) == 1) && ((*userinput == 'q') || (*userinput == 'Q'))) // check for escape character
+			{
+				break;
+			}
 
-		result = search(userinput, indices);
+			result = search(userinput, indices);
 
-		if (result == -1)
-		{
-			fprintf(stdout, "./search: '%s' not found!\n", userinput);
+			if (result == -1)
+			{
+				fprintf(stdout, "./search: '%s' not found!\n", userinput);
+			}
 		}
 	}
 
@@ -76,6 +100,22 @@ int main(int argc, char const *argv[])
 	freeindices(indices);
 
 	return 0;
+}
+
+/* clean the end of the redirected input */
+void cleanInput(char userinput[MAXLINE])
+{
+	char *cr = strstr(userinput, "\r");
+	if (cr != NULL)
+	{
+		cr[0] = 0;
+	}
+
+	char *nl = strstr(userinput, "\n");
+	if (nl != NULL)
+	{
+		nl[0] = 0;
+	}
 }
 
 /* read index.bin and return built INDEXARR* */
@@ -131,7 +171,7 @@ INDEXARR *readIndexBin(FILE *indexbin)
 /* read cards.bin
 	return new CARD*
  */
-CARD *readCardBin(char *cardbin_filename, INDEX *index)
+CARD *readCardBin(char *cardbin_filename, INDEX **index)
 {
 	FILE *cardbin = fopen(cardbin_filename, "rb");
 	if (cardbin == NULL)
@@ -140,7 +180,7 @@ CARD *readCardBin(char *cardbin_filename, INDEX *index)
 		exit(EXIT_FAILURE);
 	}
 
-	fseek(cardbin, *index->offset, SEEK_SET); // point the file offset to value from index
+	fseek(cardbin, *index[0]->offset, SEEK_SET); // point the file offset to value from index
 
 	uint32_t *len = malloc(sizeof(uint32_t)); // hold length of each char* for reading from file
 
@@ -225,12 +265,12 @@ CARD *readCardBin(char *cardbin_filename, INDEX *index)
 	{
 		perror("./search::readCardBin: failed to read rarity field");
 	}
-	rarity = (RARITY)rarity_uint32_t; // convert uint32_t to rarity
+	rarity = (RARITY)rarity_uint32_t[0]; // convert uint32_t to rarity
 	
 	// #endregion
 
 	/* build newcard */
-	CARD *newcard = cardBuilder((unsigned int)*id, strdup(index->name), cost, (unsigned int)*converted_cost, type, text, stats, rarity);
+	CARD *newcard = cardBuilder((unsigned int)*id, strdup(index[0]->name), cost, (unsigned int)*converted_cost, type, text, stats, rarity);
 
 	/* free memory */
 	free(id);
@@ -256,23 +296,33 @@ int comparIndexNames(const void *indexA, const void *indexB)
  */
 int search(char *userinput, INDEXARR *indices)
 {
-	INDEX *input_index = malloc(sizeof(INDEX));
-	input_index->name = userinput;
+	INDEX **input_index = malloc(sizeof(INDEX*));
+	input_index[0] = malloc(sizeof(INDEX));
+	input_index[0]->name = strdup(userinput);
 
-	INDEX *found_index = NULL;
-	CARD *found_card = NULL;
+	INDEX **found_index = malloc(sizeof(INDEX *));
+	found_index[0] = malloc(sizeof(INDEX));
 
-	found_index = bsearch(input_index, indices->arr[0], (size_t)*indices->size, sizeof(INDEX *), comparIndexNames);
+	found_index = bsearch(input_index, indices->arr, (size_t)*indices->size, sizeof(INDEX *), comparIndexNames);
 
 	if (found_index == NULL)
 	{
 		return -1; // failed to find match
 	}
 
+	CARD *found_card = NULL;
 	found_card = readCardBin(CARDBINFN, found_index);
+
+	if (found_card == NULL)
+	{
+		exit(EXIT_FAILURE);
+	}
+	
 
 	printCard(found_card);
 
+	free(input_index[0]->name);
+	free(input_index[0]);
 	free(input_index);
 	freeCard(found_card);
 

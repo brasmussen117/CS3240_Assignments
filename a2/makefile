@@ -1,6 +1,6 @@
 testfile = s.csv
 
-file = search
+file = parser
 
 make:
 	cc -std=gnu11 -Wall -Werror -o parser parser.c
