@@ -146,13 +146,15 @@ INDEXARR *readIndexBin(FILE *indexbin)
 			exit(EXIT_FAILURE);
 		}
 
-		indices->arr[i]->name = malloc(sizeof(char) * (size_t)*len); // malloc new name with new len
+		indices->arr[i]->name = malloc(sizeof(char) * ((size_t)*len + 1)); // malloc new name with new len
 
 		if (fread(indices->arr[i]->name, sizeof(char), *len, indexbin) != *len) // try to read name
 		{
 			fprintf(stderr, "./search::readIndexBin: cannot read name: loop-%d\n", i);
 			exit(EXIT_FAILURE);
 		}
+
+		indices->arr[i]->name[*len] = 0; // null terminate
 
 		indices->arr[i]->offset = malloc(sizeof(long)); // malloc new offset
 
@@ -270,7 +272,7 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	// #endregion
 
 	/* build newcard */
-	CARD *newcard = cardBuilder((unsigned int)*id, strdup(index[0]->name), cost, (unsigned int)*converted_cost, type, text, stats, rarity);
+	CARD *newcard = cardBuilder((unsigned int)*id, strndup(index[0]->name, strlen(index[0]->name) + 1), cost, (unsigned int)*converted_cost, type, text, stats, rarity);
 
 	/* free memory */
 	free(id);
@@ -298,7 +300,7 @@ int search(char *userinput, INDEXARR *indices)
 {
 	INDEX **input_index = malloc(sizeof(INDEX*));
 	input_index[0] = malloc(sizeof(INDEX));
-	input_index[0]->name = strdup(userinput);
+	input_index[0]->name = strndup(userinput, strlen(userinput) + 1);
 
 	INDEX **found_index = malloc(sizeof(INDEX *));
 	found_index[0] = malloc(sizeof(INDEX));

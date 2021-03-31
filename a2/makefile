@@ -1,6 +1,6 @@
-testfile = s.csv
+testfile = ../a1-2_cards_csv/cards.csv
 
-file = parser
+file = search
 
 make:
 	cc -std=gnu11 -Wall -Werror -o parser parser.c
@@ -11,8 +11,8 @@ cleanx:
 	rm -f ./search
 
 cleanb:
-	rm -f ./bin/cards.bin
-	rm -f ./bin/index.bin
+	rm -f ./cards.bin
+	rm -f ./index.bin
 
 debug: $(file).c
 	cc -std=gnu11 -Wall -Werror -o $(file) $(file).c -g -no-pie
@@ -21,7 +21,7 @@ gdb: $(file)
 	gdb $(file)
 
 valgrind:
-	valgrind --tool=memcheck --leak-check=full ./$(file) $(testfile)
+	valgrind --tool=memcheck --leak-check=full --log-fd=3 ./$(file) < input.txt 1> stdout 2> stderr 3> valout
 
 valgrind_gdb:
 	valgrind --tool=memcheck --leak-check=full --vgdb-error=0 ./$(file) $(testfile)

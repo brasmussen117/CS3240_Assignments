@@ -8,9 +8,9 @@
 #include <stdint.h>
 
 /* defs */
-#define MAXLINE 32 // max input length
-#define CARDBINFN "bin/cards.bin" // cards binary filename
-#define INDEXBINFN "bin/index.bin" // index binary filename
+#define MAXLINE 33 // max input length
+#define CARDBINFN "cards.bin" // cards binary filename
+#define INDEXBINFN "index.bin" // index binary filename
 #define TERMINAL 1 // isatty(STDIN_FILENO) == 1
 #define REDIRECT 0 // isatty(STDIN_FILENO) == 0
 
@@ -156,9 +156,9 @@ char *cleanstr(char *s)
     }
 }
 
-/* #endregion */
+/* #endregion helper funcs */
 
-/* #region  index funcs */
+/* #region index funcs */
 
 /* create INDEX* from fields */
 INDEX *indexbuilder(char *name, long offset)
@@ -184,7 +184,7 @@ void freeindices(INDEXARR *indices)
     free(indices->size);
     free(indices);
 }
-/* #endregion */
+/* #endregion index funcs */
 
 /* #region parser funcs */
 
@@ -196,162 +196,116 @@ INDEXARR *writeCardBin(FILE *output_card_file, CARDARR *cards)
     indices->size = malloc(sizeof(uint32_t));
     *indices->size = (uint32_t)cards->size;
 
+    uint32_t *intptr = malloc(sizeof(uint32_t)); // reusable pointer to uint32_t value
+
     for (size_t i = 0; i < cards->size; i++)
     {
         /* make the index entries ---------------------------------- */
         indices->arr[i] = indexbuilder(cards->arr[i]->name, ftell(output_card_file));
 
-        // #region write card fields -------------------------------
+        /* #region write card fields ------------------------------- */
 
-        // #region id - unsigned int
-        uint32_t *idout = convtoptr_uint32_t((uint32_t)cards->arr[i]->id);
-        if (!fwrite(idout,
-                    sizeof(uint32_t),
-                    1,
-                    output_card_file))
+        /* id - unsigned int */
+        *intptr = (uint32_t)cards->arr[i]->id;
+        if (fwrite(intptr, sizeof(uint32_t), 1, output_card_file) != 1)
         {
-            fprintf(stderr, "parser::writeCardBin: id field not written: %d\n", cards->arr[i]->id);
-            exit(EXIT_FAILURE);
-        }
-        free(idout);
-        // #endregion
-
-        // #region cost - char*
-        uint32_t *cost_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->cost));
-        if (!fwrite(cost_len,
-                    sizeof(uint32_t),
-                    1,
-                    output_card_file))
-        {
-            fprintf(stderr, "parser::writeCardBin: cost size not written: %s\n", cards->arr[i]->cost);
+            fprintf(stderr, "cardfuncs.h::writeCardBin: id field not written: %d\n", cards->arr[i]->id);
             exit(EXIT_FAILURE);
         }
 
-        if (cost_len > 0) // check if field was blank
+        /* cost - char* */
+        *intptr = (uint32_t)strlen(cards->arr[i]->cost);
+        if (fwrite(intptr, sizeof(uint32_t), 1, output_card_file) != 1)
         {
-            if (
-                fwrite(cards->arr[i]->cost,
-                       sizeof(char),
-                       *cost_len,
-                       output_card_file) != *cost_len)
+            fprintf(stderr, "cardfuncs.h::writeCardBin: cost size not written: %s\n", cards->arr[i]->cost);
+            exit(EXIT_FAILURE);
+        }
+
+        if (*intptr > 0) // check if field was blank
+        {
+            if (fwrite(cards->arr[i]->cost, sizeof(char), *intptr, output_card_file) != *intptr)
             {
-                perror("parser::writeCardBin: cost field not written");
+                perror("cardfuncs.h::writeCardBin: cost field not written");
                 exit(EXIT_FAILURE);
             }
         }
-        free(cost_len);
-        // #endregion
 
-        // #region converted_cost - unsigned int
-        uint32_t *converted_cost_out = convtoptr_uint32_t((uint32_t)cards->arr[i]->converted_cost);
-        if (!fwrite(converted_cost_out,
-                    sizeof(uint32_t),
-                    1,
-                    output_card_file))
+        /* converted_cost - unsigned int */
+        *intptr = (uint32_t)cards->arr[i]->converted_cost;
+        if (fwrite(intptr, sizeof(uint32_t), 1, output_card_file) != 1)
         {
-            fprintf(stderr, "parser::writeCardBin: converted_cost field not written: %d\n", cards->arr[i]->converted_cost);
+            fprintf(stderr, "cardfuncs.h::writeCardBin: converted_cost field not written: %d\n", cards->arr[i]->converted_cost);
             exit(EXIT_FAILURE);
         }
-        free(converted_cost_out);
-        // #endregion
 
-        // #region type - char*
-        uint32_t *type_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->type));
-        if (!fwrite(type_len,
-                    sizeof(uint32_t),
-                    1,
-                    output_card_file))
+        /* type - char* */
+        *intptr = (uint32_t)strlen(cards->arr[i]->type);
+        if (fwrite(intptr, sizeof(uint32_t), 1, output_card_file) != 1)
         {
-            fprintf(stderr, "parser::writeCardBin: type size not written: %s\n", cards->arr[i]->type);
+            fprintf(stderr, "cardfuncs.h::writeCardBin: type size not written: %s\n", cards->arr[i]->type);
             exit(EXIT_FAILURE);
         }
-        free(type_len);
 
-        if (!fwrite(cards->arr[i]->type,
-                    sizeof(char),
-                    strlen(cards->arr[i]->type),
-                    output_card_file))
+        if (fwrite(cards->arr[i]->type, sizeof(char), *intptr, output_card_file) != *intptr)
         {
-            fprintf(stderr, "parser::writeCardBin: type field not written: %s\n", cards->arr[i]->type);
+            fprintf(stderr, "cardfuncs.h::writeCardBin: type field not written: %s\n", cards->arr[i]->type);
             exit(EXIT_FAILURE);
         }
-        // #endregion
 
-        // #region text - char*
-        uint32_t *text_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->text));
-        if (!fwrite(text_len,
-                    sizeof(uint32_t),
-                    1,
-                    output_card_file))
+        /* text - char* */
+        *intptr = (uint32_t)strlen(cards->arr[i]->text);
+        if (fwrite(intptr, sizeof(uint32_t), 1, output_card_file) != 1)
         {
-            fprintf(stderr, "parser::writeCardBin: text size not written: %s\n", cards->arr[i]->text);
+            fprintf(stderr, "cardfuncs.h::writeCardBin: text size not written: %s\n", cards->arr[i]->text);
             exit(EXIT_FAILURE);
         }
-        if (text_len > 0) // check if field was blank
+        if (*intptr > 0) // check if field was blank
         {
-            if (!fwrite(cards->arr[i]->text,
-                        sizeof(char),
-                        strlen(cards->arr[i]->text),
-                        output_card_file))
+            if (fwrite(cards->arr[i]->text, sizeof(char), *intptr, output_card_file) != *intptr)
             {
-                fprintf(stderr, "parser::writeCardBin: text field not written: %s\n", cards->arr[i]->text);
+                fprintf(stderr, "cardfuncs.h::writeCardBin: text field not written: %s\n", cards->arr[i]->text);
                 exit(EXIT_FAILURE);
             }
         }
-        free(text_len);
-        // #endregion
 
-        // #region stats - char*
-        uint32_t *stats_len = NULL;
+        /* #region stats - char* */
         if (cards->arr[i]->stats != zptr_char) // check if field was blank, if so remain zero
         {
-            stats_len = convtoptr_uint32_t((uint32_t)strlen(cards->arr[i]->stats));
+            *intptr = (uint32_t)strlen(cards->arr[i]->stats);
         } else
         {
-            stats_len = convtoptr_uint32_t(0);
+            *intptr = 0;
         }
 
-        if (fwrite(stats_len,
-                    sizeof(uint32_t),
-                    1,
-                    output_card_file) != 1) // try to write, handle if fail
+        if (fwrite(intptr, sizeof(uint32_t), 1, output_card_file) != 1) // try to write, handle if fail
         {
-            fprintf(stderr, "parser::writeCardBin: stats size not written: %s\n", cards->arr[i]->stats);
+            fprintf(stderr, "cardfuncs.h::writeCardBin: stats size not written: %s\n", cards->arr[i]->stats);
             exit(EXIT_FAILURE);
         }
 
-        if (stats_len > 0) // check if anything to write
+        if (*intptr > 0) // check if anything to write
         {
-            if (fwrite(cards->arr[i]->stats,
-                    sizeof(char),
-                    *stats_len,
-                    output_card_file) 
-                != *stats_len) // try to write, handle if fail
+            if (fwrite(cards->arr[i]->stats, sizeof(char), *intptr, output_card_file) != *intptr) // try to write, handle if fail
             {
-                perror("parser::writeCardBin: stats field not written");
+                perror("cardfuncs.h::writeCardBin: stats field not written");
                 exit(EXIT_FAILURE);
             }
         }
-        
-        free(stats_len);
-        // #endregion
+        /* #endregion */
 
-        // #region rarity
-        uint32_t *rarity_out = convtoptr_uint32_t((uint32_t)cards->arr[i]->rarity);
-        if (!fwrite(rarity_out,
-                    sizeof(uint32_t),
-                    1,
-                    output_card_file))
+        /* rarity */
+        *intptr = (uint32_t)cards->arr[i]->rarity;
+        if (fwrite(intptr, sizeof(uint32_t), 1, output_card_file) != 1)
         {
-            fprintf(stderr, "parser::writeCardBin: rarity field not written: %d\n", cards->arr[i]->rarity);
+            fprintf(stderr, "cardfuncs.h::writeCardBin: rarity field not written: %d\n", cards->arr[i]->rarity);
             exit(EXIT_FAILURE);
         }
-        free(rarity_out);
-        // #endregion rarity
 
-        // #endregion write card fields
+        /* #endregion write card fields */
     
     }
+
+    free(intptr);
 
     return indices;
 }
@@ -360,12 +314,9 @@ INDEXARR *writeCardBin(FILE *output_card_file, CARDARR *cards)
 void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
 {
     /* write the size of the index - uint32_t ---------------------- */
-    if (!fwrite(indices->size,
-                sizeof(uint32_t),
-                1,
-                output_index_file))
+    if (fwrite(indices->size, sizeof(uint32_t), 1, output_index_file) != 1)
     {
-        fprintf(stderr, "parser::writeIndexBin: index size not written: %d\n", *indices->size);
+        fprintf(stderr, "cardfuncs.h::writeIndexBin: index size not written: %d\n", *indices->size);
         exit(EXIT_FAILURE);
     }
 
@@ -373,16 +324,16 @@ void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
     for (size_t i = 0; i < *indices->size; i++)
     {
         /* name size - uint32_t */
-        uint32_t *name_len = convtoptr_uint32_t((uint32_t)strlen(indices->arr[i]->name));
-        if (!fwrite(name_len,
+        uint32_t *len = convtoptr_uint32_t((uint32_t)strlen(indices->arr[i]->name));
+        if (!fwrite(len,
                     sizeof(uint32_t),
                     1,
                     output_index_file))
         {
-            fprintf(stderr, "parser::writeIndexBin: name size not written: %s\n", indices->arr[i]->name);
+            fprintf(stderr, "cardfuncs.h::writeIndexBin: name size not written: %s\n", indices->arr[i]->name);
             exit(EXIT_FAILURE);
         }
-        free(name_len);
+        free(len);
 
         /* name - char* */
         if (!fwrite(indices->arr[i]->name,
@@ -390,7 +341,7 @@ void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
                     strlen(indices->arr[i]->name),
                     output_index_file))
         {
-            fprintf(stderr, "parser::writeIndexBin: name field not written: %s\n", indices->arr[i]->name);
+            fprintf(stderr, "cardfuncs.h::writeIndexBin: name field not written: %s\n", indices->arr[i]->name);
             exit(EXIT_FAILURE);
         }
 
@@ -400,13 +351,13 @@ void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
                     1,
                     output_index_file))
         {
-            fprintf(stderr, "parser::writeIndexBin: offset field not written: %ln\n", indices->arr[i]->offset);
+            fprintf(stderr, "cardfuncs.h::writeIndexBin: offset field not written: %ln\n", indices->arr[i]->offset);
             exit(EXIT_FAILURE);
         }
     }
 }
 
-/* #endregion */
+/* #endregion parser funcs */
 
 /* #region card funcs */
 /* frees a CARD* and char* fields
