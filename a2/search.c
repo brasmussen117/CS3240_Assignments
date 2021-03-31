@@ -308,7 +308,7 @@ int search(char *userinput, INDEXARR *indices)
 
 	INDEX *found_index = NULL;
 
-	found_index = (INDEX*)bsearch(search_indices, indices->arr, (size_t)*indices->size, sizeof(INDEX), comparIndexNames);
+	found_index = bsearch(search_indices, indices->arr[0], (size_t)*indices->size, sizeof(INDEX *), comparIndexNames);
 
 	if (found_index == NULL)
 	{
