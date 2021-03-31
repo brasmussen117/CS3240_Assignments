@@ -175,8 +175,9 @@ INDEXARR *readIndexBin(FILE *indexbin)
  */
 CARD *readCardBin(char *cardbin_filename, INDEX **index)
 {
-	FILE *cardbin = fopen(cardbin_filename, "rb");
-	if (cardbin == NULL)
+	/* open bin file ----------------------------------------------- */
+	FILE *cardbin = fopen(cardbin_filename, "rb"); // bin file pointer
+	if (cardbin == NULL) // check if fopen successful
 	{
 		perror("./search::readCardBin: failed to open bin file");
 		exit(EXIT_FAILURE);
@@ -184,9 +185,9 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 
 	fseek(cardbin, *index[0]->offset, SEEK_SET); // point the file offset to value from index
 
-	uint32_t *len = malloc(sizeof(uint32_t)); // hold length of each char* for reading from file
+	uint32_t *len = malloc(sizeof(uint32_t)); // reusable var to hold length of each char* field
 
-	/* vars for reading and building newcard */
+	/* vars for reading and building newcard ----------------------- */
 	uint32_t *id = malloc(sizeof(uint32_t)); // id field, mem allocated
 	char *cost; // cost field
 	uint32_t *converted_cost = malloc(sizeof(uint32_t)); //converted_cost field, mem allocated
@@ -196,7 +197,7 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	uint32_t *rarity_uint32_t = malloc(sizeof(uint32_t)); // temp rarity, mem allocated
 	RARITY rarity;
 
-	// #region read fields
+	// #region read fields -----------------------------------------
 
 	/* id field */
 	if (fread(id, sizeof(uint32_t), 1, cardbin) != 1)
@@ -274,10 +275,18 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	
 	// #endregion
 
-	/* build newcard */
-	CARD *newcard = cardBuilder((unsigned int)*id, strndup(index[0]->name, strlen(index[0]->name) + 1), cost, (unsigned int)*converted_cost, type, text, stats, rarity);
+	/* close file -------------------------------------------------- */
+	if (fclose(cardbin) == EOF)
+	{
+		perror("./search::readCardBin: failed to close bin file");
+		exit(EXIT_FAILURE);
+	}
 
-	/* free memory */
+	/* build newcard ----------------------------------------------- */
+	char *card_name = strdup(index[0]->name);
+	CARD *newcard = cardBuilder((unsigned int)*id, card_name, cost, (unsigned int)*converted_cost, type, text, stats, rarity);
+
+	/* free memory ------------------------------------------------- */
 	free(len);
 	free(id);
 	free(converted_cost);
@@ -302,36 +311,51 @@ int comparIndexNames(const void *indexA, const void *indexB)
  */
 int search(char *userinput, INDEXARR *indices)
 {
+	int ret;
+
 	INDEX **input_index = malloc(sizeof(INDEX*));
 	input_index[0] = malloc(sizeof(INDEX));
 	input_index[0]->name = strndup(userinput, strlen(userinput) + 1);
 
-	INDEX **found_index = malloc(sizeof(INDEX *));
-	found_index[0] = malloc(sizeof(INDEX));
+	INDEX **found_index = NULL;
 
-	found_index = bsearch(input_index, indices->arr, (size_t)*indices->size, sizeof(INDEX *), comparIndexNames);
+	void *result = bsearch(input_index, indices->arr, (size_t)*indices->size, sizeof(INDEX *), comparIndexNames);
 
-	if (found_index == NULL)
+	if (result == NULL)
 	{
-		return -1; // failed to find match
-	}
+		ret = -1; // failed to find match
 
-	CARD *found_card = NULL;
-	found_card = readCardBin(CARDBINFN, found_index);
-
-	if (found_card == NULL)
+		free(found_index);
+	} else
 	{
-		exit(EXIT_FAILURE);
-	}
+		ret = 0; // good match found
 
-	printCard(found_card);
+		found_index = result;
+
+		CARD *found_card = readCardBin(CARDBINFN, found_index); // read found_card from found_index
+
+		if (found_card == NULL) // check that found_card read properly
+		{
+			exit(EXIT_FAILURE);
+		}
+
+		printCard(found_card); // print the card
+
+		freeCard(found_card); // free the card
+
+		// *found_index = NULL;
+
+		// if (realloc(found_index, 0) != NULL)
+		// {
+		// 	free(found_index);
+		// }
+	}
 
 	free(input_index[0]->name);
 	free(input_index[0]);
 	free(input_index);
-	freeCard(found_card);
 
-	return 0;
+	return ret;
 }
 
 /* 
