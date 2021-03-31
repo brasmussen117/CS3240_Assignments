@@ -97,7 +97,7 @@ int main(int argc, char const *argv[])
 	}
 
 	/* free memory ------------------------------------------------- */
-	freeindices(indices);
+	freeindices_name(indices);
 
 	return 0;
 }
