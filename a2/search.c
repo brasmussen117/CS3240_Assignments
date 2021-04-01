@@ -22,7 +22,7 @@ int main(int argc, char const *argv[])
 	{
 		if (errno == ENOENT)
 		{
-			fprintf(stderr, "./search: cannot open(\"%s\"): No such file or directory\n", argv[1]);
+			fprintf(stderr, "./search: cannot open(\"%s\"): No such file or directory\n", INDEXBINFN);
 		}
 		else
 		{
@@ -32,7 +32,7 @@ int main(int argc, char const *argv[])
 	}
 
 	/* build index from bin ---------------------------------------- */
-	INDEXARR *indices = readIndexBin(indexbin);
+	INDEXARR *indices = readIndexBin(indexbin); // arr struct of indexes
 
 	/* close index file -------------------------------------------- */
 	if (fclose(indexbin) != 0)
@@ -41,20 +41,20 @@ int main(int argc, char const *argv[])
 	}
 
 	/* I/O loop ---------------------------------------------------- */
-	char userinput[MAXLINE]; // take user input
+	char userinput[MAXLINE]; // take user input up tot MAXLINE
 	int result;			 // get result of search
 
-	if (isatty(STDIN_FILENO) == REDIRECT) // check if input is redirected
+	if (isatty(STDIN_FILENO) != TERMINAL) // check if input is redirected
 	{
 		fprintf(stdout, ">> "); // display prompt
 		fgets(userinput, MAXLINE, stdin);
-		while ((userinput != NULL) && !strcmp(userinput, ""))
+		while ((userinput != NULL) && strcmp(userinput, "")!=0)
 		{
 			cleanInput(userinput); // strip non-chars
 
 			fprintf(stdout, "%s\n", userinput); // echo input
 
-			if ((strlen(userinput) == 1) && ((*userinput == 'q') || (*userinput == 'Q')))
+			if ((strlen(userinput) == 1) && (strcmp(userinput, "q")==0 || strcmp(userinput, "Q")==0))
 			{
 				break;
 			}
@@ -138,23 +138,23 @@ INDEXARR *readIndexBin(FILE *indexbin)
 	uint32_t *len = malloc(sizeof(uint32_t));
 
 	// for (uint32_t i = 0; i < *indices->size; i++) // loop to read each index entry
-	uint32_t i = 0;
+	size_t i = 0;
 	while (1)
 	{
-		indices->arr[i] = malloc(sizeof(INDEX)); // malloc new index entry
-
 		if (fread(len, sizeof(uint32_t), 1, indexbin) != 1) // try to read strlen
 		{
 			// fprintf(stderr, "./search::readIndexBin: cannot read size: loop-%d\n", i);
 			// exit(EXIT_FAILURE); // TODO: REMOVE
+
 			break;
 		}
 
+		indices->arr[i] = malloc(sizeof(INDEX)); // malloc new index entry
 		indices->arr[i]->name = malloc(sizeof(char) * ((size_t)*len + 1)); // malloc new name with new len
 
 		if (fread(indices->arr[i]->name, sizeof(char), *len, indexbin) != *len) // try to read name
 		{
-			fprintf(stderr, "./search::readIndexBin: cannot read name: loop-%d\n", i);
+			fprintf(stderr, "./search::readIndexBin: cannot read name: loop-%ld\n", i);
 			exit(EXIT_FAILURE);
 		}
 
@@ -164,12 +164,15 @@ INDEXARR *readIndexBin(FILE *indexbin)
 
 		if (fread(indices->arr[i]->offset, sizeof(long), 1, indexbin) != 1) // try to read offset
 		{
-			fprintf(stderr, "./search::readIndexBin: cannot read offset: loop-%d\n", i);
+			fprintf(stderr, "./search::readIndexBin: cannot read offset: loop-%ld\n", i);
 			exit(EXIT_FAILURE);
 		}
 
 		i++;
+		indices->arr = realloc(indices->arr, sizeof(INDEX*) * (i + 1));
 	}
+
+	indices->size = convtoptr_uint32_t((uint32_t)i);
 
 	free(len);
 

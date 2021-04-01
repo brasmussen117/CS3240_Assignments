@@ -5,12 +5,9 @@ a1/parser
 a2/parser
 a2/search
 a2/*bin
-a1-2_cards_csv/cards.csv
-a1-2_cards_csv/short-cards-1.csv
-a1-2_cards_csv/short-cards-2.csv
+*a1-2_cards_csv
 a2/s.csv
-a2/input.txt
+a2/*.txt
+a2/hexdump*
 a2/stderr
 a2/stdout
-a2/valout
-a2/hexdump
