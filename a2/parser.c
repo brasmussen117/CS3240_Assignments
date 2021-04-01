@@ -49,9 +49,6 @@ int main(int argc, char const *argv[])
         return 2;
     }
 
-    /* sort cards -------------------------------------------------- */
-    qsort(cards->arr, cards->size, sizeof(CARD *), comparCardName);
-
     /* write cards to bin file ------------------------------------- */
     FILE *output_card_file = fopen(CARDBINFN, "wb"); // create file with above filename
 
@@ -64,12 +61,16 @@ int main(int argc, char const *argv[])
     INDEXARR *indices = NULL;
     indices = writeCardBin(output_card_file, cards); // write cards to file, return **indices
 
-    if (indices == NULL)
+    if (indices == NULL) // check that index successfully created
     {
         fprintf(stderr, "parser::main: index not successfully created\n");
         return 4;
     }
 
+    /* sort indices ------------------------------------------------ */
+    qsort(indices->arr, *indices->size, sizeof(INDEX *), comparIndexNames);
+
+    /* close cards.bin file */
     if (fclose(output_card_file) != 0)
     {
         fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", CARDBINFN);

@@ -48,11 +48,11 @@ int main(int argc, char const *argv[])
 	{
 		fprintf(stdout, ">> "); // display prompt
 		fgets(userinput, MAXLINE, stdin);
-		while (userinput != NULL)
+		while ((userinput != NULL) && !strcmp(userinput, ""))
 		{
-			fprintf(stdout, "%s", userinput); // echo input
-
 			cleanInput(userinput); // strip non-chars
+
+			fprintf(stdout, "%s\n", userinput); // echo input
 
 			if ((strlen(userinput) == 1) && ((*userinput == 'q') || (*userinput == 'Q')))
 			{
@@ -122,28 +122,32 @@ void cleanInput(char userinput[MAXLINE])
 INDEXARR *readIndexBin(FILE *indexbin)
 {
 	/* read size of indices ---------------------------------------- */
-	uint32_t *indexsize = malloc(sizeof(uint32_t));			  // number of indices in bin
-	if (fread(indexsize, sizeof(uint32_t), 1, indexbin) != 1) // try to read indexsize, handle if not able
-	{
-		perror("./search::readIndexBin: cannot read file");
-		exit(EXIT_FAILURE);
-	}
+	// uint32_t *indexsize = malloc(sizeof(uint32_t));			  // number of indices in bin
+	// if (fread(indexsize, sizeof(uint32_t), 1, indexbin) != 1) // try to read indexsize, handle if not able
+	// {
+	// 	perror("./search::readIndexBin: cannot read file");
+	// 	exit(EXIT_FAILURE);
+	// } // TODO: remove
 
 	/* initialize indices ------------------------------------------ */
 	INDEXARR *indices = malloc(sizeof(INDEXARR));
-	indices->arr = malloc(sizeof(INDEX *) * *indexsize);
-	indices->size = indexsize;
+	// indices->arr = malloc(sizeof(INDEX *) * *indexsize); // statically allocated
+	indices->arr = malloc(sizeof(INDEX *)); // dynamically allocated
+	// indices->size = indexsize;
 
 	uint32_t *len = malloc(sizeof(uint32_t));
 
-	for (uint32_t i = 0; i < *indices->size; i++) // loop to read each index entry
+	// for (uint32_t i = 0; i < *indices->size; i++) // loop to read each index entry
+	uint32_t i = 0;
+	while (1)
 	{
 		indices->arr[i] = malloc(sizeof(INDEX)); // malloc new index entry
 
 		if (fread(len, sizeof(uint32_t), 1, indexbin) != 1) // try to read strlen
 		{
-			fprintf(stderr, "./search::readIndexBin: cannot read size: loop-%d\n", i);
-			exit(EXIT_FAILURE);
+			// fprintf(stderr, "./search::readIndexBin: cannot read size: loop-%d\n", i);
+			// exit(EXIT_FAILURE); // TODO: REMOVE
+			break;
 		}
 
 		indices->arr[i]->name = malloc(sizeof(char) * ((size_t)*len + 1)); // malloc new name with new len
@@ -163,6 +167,8 @@ INDEXARR *readIndexBin(FILE *indexbin)
 			fprintf(stderr, "./search::readIndexBin: cannot read offset: loop-%d\n", i);
 			exit(EXIT_FAILURE);
 		}
+
+		i++;
 	}
 
 	free(len);
@@ -293,16 +299,6 @@ CARD *readCardBin(char *cardbin_filename, INDEX **index)
 	free(rarity_uint32_t);
 
 	return newcard;
-}
-
-/* custom comparator for bsearch 
-	returns strmp of index entry names 
-*/
-int comparIndexNames(const void *indexA, const void *indexB)
-{
-	const INDEX *A = *(INDEX **)indexA;
-	const INDEX *B = *(INDEX **)indexB;
-	return strcmp(A->name, B->name);
 }
 
 /* search the index for userinput

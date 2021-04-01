@@ -1,6 +1,17 @@
-testfile = ../a1-2_cards_csv/cards.csv
+testfile1 = ../a1-2_cards_csv/cards.csv
+testfile2 = ./helpers/cards.csv
+testfile3 = ./s.csv
 
 file = search
+
+input_r = < input.txt
+input = $(input_r)
+
+stdout = stdout.txt
+stderr = stderr.txt
+valout = valout.txt
+
+output = 1> $(stdout) 2> $(stderr)  3> $(valout)
 
 make:
 	cc -std=gnu11 -Wall -Werror -o parser parser.c
@@ -21,7 +32,7 @@ gdb: $(file)
 	gdb $(file)
 
 valgrind:
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --log-fd=3 ./$(file) < input.txt 1> stdout 2> stderr 3> valout
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --log-fd=3 ./$(file) $(input) $(output)
 
 valgrind_gdb:
 	valgrind --tool=memcheck --leak-check=full --vgdb-error=0 ./$(file) $(testfile)

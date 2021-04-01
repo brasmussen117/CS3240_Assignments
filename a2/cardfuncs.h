@@ -201,6 +201,16 @@ void freeindices_name(INDEXARR *indices)
     free(indices);
 }
 
+/* custom comparator for bsearch 
+	returns strmp of index entry names 
+*/
+int comparIndexNames(const void *indexA, const void *indexB)
+{
+	const INDEX *A = *(INDEX **)indexA;
+	const INDEX *B = *(INDEX **)indexB;
+	return strcmp(A->name, B->name);
+}
+
 /* #endregion index funcs */
 
 /* #region parser funcs */
@@ -331,17 +341,19 @@ INDEXARR *writeCardBin(FILE *output_card_file, CARDARR *cards)
 void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
 {
     /* write the size of the index - uint32_t ---------------------- */
-    if (fwrite(indices->size, sizeof(uint32_t), 1, output_index_file) != 1)
-    {
-        fprintf(stderr, "cardfuncs.h::writeIndexBin: index size not written: %d\n", *indices->size);
-        exit(EXIT_FAILURE);
-    }
+    // if (fwrite(indices->size, sizeof(uint32_t), 1, output_index_file) != 1)
+    // {
+    //     fprintf(stderr, "cardfuncs.h::writeIndexBin: index size not written: %d\n", *indices->size);
+    //     exit(EXIT_FAILURE);
+    // } // TODO: REMOVE
+
+    uint32_t *len = convtoptr_uint32_t(0);
 
     /* loop and write each index entry ----------------------------- */
     for (size_t i = 0; i < *indices->size; i++)
     {
         /* name size - uint32_t */
-        uint32_t *len = convtoptr_uint32_t((uint32_t)strlen(indices->arr[i]->name));
+        *len = (uint32_t)strlen(indices->arr[i]->name);
         if (!fwrite(len,
                     sizeof(uint32_t),
                     1,
@@ -350,7 +362,6 @@ void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
             fprintf(stderr, "cardfuncs.h::writeIndexBin: name size not written: %s\n", indices->arr[i]->name);
             exit(EXIT_FAILURE);
         }
-        free(len);
 
         /* name - char* */
         if (!fwrite(indices->arr[i]->name,
@@ -372,6 +383,8 @@ void writeIndexBin(FILE *output_index_file, INDEXARR *indices)
             exit(EXIT_FAILURE);
         }
     }
+
+    free(len);
 }
 
 /* #endregion parser funcs */
