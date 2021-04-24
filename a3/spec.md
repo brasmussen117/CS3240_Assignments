@@ -22,6 +22,7 @@ The directory tree with pieces and the correct output file are given in the star
 * $ man 3 pthread_mutex_unlock
 * $ man 3 pthread_mutex_destroy
 
+
 ***
 
 # Implementation
