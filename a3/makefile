@@ -20,6 +20,7 @@ make:
 
 clean:
 	rm -f $(file)
+	rm -f $(testout)
 
 debug: clean
 	$(cc) -g -no-pie $(CFLAGS) $(file) $(file).c

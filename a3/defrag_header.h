@@ -1,3 +1,4 @@
+/* #region includes ------------------------------------------------ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,10 +8,26 @@
 #include <stdint.h>
 #include <dirent.h>
 #include <stdbool.h>
+#include <pthread.h>
+/* #endregion includes */
 
-/* #region  variables/const ---------------------------------------- */
+/* #region global variables/const ---------------------------------- */
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
+/* mp3 array */
+char **mp3_entries;
+int *mp3_length;
+
+char buf[MAXNAMLEN];
 /* #endregion variables/const */
+
+/* #region structs ------------------------------------------------- */
+typedef struct index
+{
+	char **entries;
+	int *length;
+} index_t;
+/* #endregion structs */
 
 /* #region functions ----------------------------------------------- */
 
@@ -32,11 +49,6 @@ const char *get_filename_ext(const char *filename)
 /* check if filename string contains mp3 extension */
 bool is_mp3(const char *filename)
 {
-	if (strcmp(get_filename_ext(filename), "mp3") == 0){
-		return true;
-	} else
-	{
-		return false;
-	}
+	return ((strcmp(get_filename_ext(filename), "mp3") == 0) ? true : false);
 }
 /* #endregion functions */
