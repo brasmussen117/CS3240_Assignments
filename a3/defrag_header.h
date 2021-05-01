@@ -14,19 +14,38 @@
 /* #region global variables/const ---------------------------------- */
 #define MAXTHREADS 100
 
+#define DEFAULTOUTFN "./myout.mp3"
+#define DEFAULTINFN "./starters/dirs"
+
 pthread_t tids[MAXTHREADS];
 
 int thread_count = 0;
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* #endregion variables/const */
+/* #endregion global variables/const */
+
+/* #region testing vars -------------------------------------------- */
+
+const char *testmp3paths[] = {
+	"starters/dirs/home/etc/etc/0.mp3",
+	"starters/dirs/bin/bin/dev/1.mp3",
+	"starters/dirs/home/home/proc/2.mp3",
+	"starters/dirs/usr/home/3.mp3",
+	"starters/dirs/dev/proc/home/4.mp3",
+	"starters/dirs/var/proc/dev/5.mp3",
+	"starters/dirs/dev/home/usr/6.mp3",
+	"starters/dirs/etc/dev/usr/7.mp3"
+};
+
+/* #endregion */
 
 /* #region structs ------------------------------------------------- */
 
-typedef struct mp3info {
+typedef struct mp3info
+{
 	int filename;
-	const char *fullpath;
+	const char *path;
 	void *data;
 } mp3info_t;
 
@@ -35,7 +54,8 @@ int mp3_index_length = 0;
 
 // char **directories; // TODO: remove
 
-typedef struct dir {
+typedef struct dir
+{
 	DIR *dir;
 	const char *path;
 } dir_t;
@@ -69,11 +89,12 @@ bool is_mp3(const char *filename)
 }
 
 /* return int value of a filename */
-int get_int(char *filename){
-    char *file_str = strdup(filename); // dup filename for strsep
-    char *free_file_str = file_str; // get pointer to beginning of file_str
+int get_int(char *filename)
+{
+	char *file_str = strdup(filename); // dup filename for strsep
+	char *free_file_str = file_str;	   // get pointer to beginning of file_str
 
-    int file_int = atoi(strsep(&file_str, ".")); // sep and get int value
+	int file_int = atoi(strsep(&file_str, ".")); // sep and get int value
 
 	free(free_file_str); // free memory
 
@@ -81,12 +102,13 @@ int get_int(char *filename){
 }
 
 /* concatenate filepath/filename */
-char *catpath(char *filename, const char *filepath){
-    char buf[MAXNAMLEN];
+char *catpath(char *filename, const char *filepath)
+{
+	char buf[MAXNAMLEN];
 
-	strcpy(buf, filepath); // copy the filepath into buf 
-    strcat(buf, "/"); // cat a slash between path and name
-    strcat(buf, filename); // cat the filename
+	strcpy(buf, filepath); // copy the filepath into buf
+	strcat(buf, "/");	   // cat a slash between path and name
+	strcat(buf, filename); // cat the filename
 
 	return strdup(buf);
 }

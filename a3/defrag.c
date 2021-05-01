@@ -3,8 +3,10 @@
 /* function prototypes --------------------------------------------- */
 void *searchdir(void *);
 void makeindex(struct dirent *, const char *);
+mp3info_t **testmp3s();
+void *mp3merge(mp3info_t **, int);
 
-int main(int argc, char const *argv[]) // ##########################
+int main(int argc, char const *argv[]) // #############################
 {
     /* check for necessary arguments ------------------------------- */
     if (argc < 3) // check for minimum args
@@ -53,7 +55,7 @@ int main(int argc, char const *argv[]) // ##########################
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stdout, "main: initialized top thread: %lu\n", topid);
+    fprintf(stdout, "main: initialized top thread: %lu, dir\n", topid);
 
     /* rejoin threads ---------------------------------------------- */
     // for (size_t i = 0; i < thread_count; i++) // TODO: remove
@@ -61,9 +63,21 @@ int main(int argc, char const *argv[]) // ##########################
         pthread_join(topid, NULL);
     // }
     
+    /* merge mp3s -------------------------------------------------- */
+    void *mergedmp3s = mp3merge(testmp3s(), 8); // TODO: remove debug
+
+    /* create ouput file */
+    FILE *output_mp3 = fopen(DEFAULTOUTFN, "w"); // TODO: remove debug
+
+    /* write merged contents to the file */
+    if (fwrite(mergedmp3s, sizeof(*mergedmp3s), 1, output_mp3) != sizeof(*mergedmp3s))
+    {
+        perror("main: failed to write mp3 output file");
+        exit(EXIT_FAILURE);
+    }
 
 	return 0;
-} // main ##########################################################
+} // main #############################################################
 
 /* thread func to search a dir for mp3 files */
 void *searchdir(void *arg){
@@ -163,14 +177,17 @@ void makeindex(struct dirent *entry, const char *filepath){
         }
     }
 
+    /* malloc new index -------------------------------------------- */
+    mp3_index[file_int] = malloc(sizeof(mp3info_t));
+
     /* put filename to index --------------------------------------- */
     mp3_index[file_int]->filename = file_int;
 
     /* get full path name and put to index ------------------------- */
-    mp3_index[file_int]->fullpath = catpath(entry->d_name, filepath);
+    mp3_index[file_int]->path = catpath(entry->d_name, filepath);
 
     /* open file contents ------------------------------------------ */
-    FILE *contents = fopen(mp3_index[file_int]->fullpath, O_RDONLY);
+    FILE *contents = fopen(mp3_index[file_int]->path, "r");
 
     if (contents == NULL) // check that fopen was sucessful
     {
@@ -205,3 +222,106 @@ void makeindex(struct dirent *entry, const char *filepath){
         exit(EXIT_FAILURE);
     }
 }
+
+/* make hard-coded mp3 data structure for testing
+    return array of mp3info_t*
+    ** memory is allocated and must be freed **
+*/
+mp3info_t **testmp3s()
+{
+    mp3info_t **output = malloc(sizeof(mp3info_t *) * 8); // 8 files in dirs starter file
+
+    for (int i = 0; i < 8; i++)
+    {
+        output[i] = malloc(sizeof(mp3info_t));
+
+        output[i]->filename = i;
+
+        output[i]->path = strdup(testmp3paths[i]);
+
+        /* open file contents -------------------------------------- */
+        FILE *contents = fopen(output[i]->path, "r");
+
+        if (contents == NULL) // check that fopen was sucessful
+        {
+            if (errno == ENOENT)
+            {
+                fprintf(stderr, "ERROR: makeindex: cannot open(\"%s\"): No such file or directory\n", output[i]->path);
+            }
+            else
+            {
+                perror("ERROR: makeindex: cannot open contents");
+            }
+            exit(EXIT_FAILURE);
+        }
+
+        /* get size of contents ------------------------------------ */
+        if (fseek(contents, 0, SEEK_END) == -1)
+        {
+            perror("testmp3s: fseek failed");
+            exit(EXIT_FAILURE);
+        }
+
+        long contents_size = ftell(contents);
+
+        if (contents_size == -1)
+        {
+            perror("testmp3s: ftell failed");
+            exit(EXIT_FAILURE);
+        }
+
+        rewind(contents);
+
+        /* malloc and read contents into mp3_index ---------------------- */
+
+        output[i]->data = malloc(contents_size); // malloc space for newest entry
+
+        if (fread(output[i]->data, 1, contents_size, contents) 
+            != contents_size)
+        {
+            perror("ERROR: makeindex: cannot read file contents");
+            exit(EXIT_FAILURE);
+        }
+
+        mp3_index_length++; // inc mp3_index_length
+        
+        /* close file -------------------------------------------------- */
+        if (fclose(contents) != 0) // check file close success
+        {
+            fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", output[i]->path);
+            exit(EXIT_FAILURE);
+        }
+        
+    }
+    
+    return output;
+}
+
+/* merge mp3 file segments into one
+    return ptr to merged data
+    ** memory is allocated and must be freed **
+*/
+void *mp3merge(mp3info_t **mp3index, int mp3indexlen)
+{
+    /* get size of total file -------------------------------------- */
+    size_t totalsize = 0; // sum of the sizes of the individual segments
+    for (size_t i = 0; i < mp3indexlen; i++) // loop to sum each segment
+    {
+        totalsize += sizeof(*mp3index[i]->data);
+    }
+    
+    /* setup and append data to output ----------------------------- */
+    void *output = malloc(totalsize); // output var, malloc'd to sum of data len
+    void *endptr = output; // ptr for appending
+
+    for (size_t i = 0; i < mp3indexlen; i++) // loop to append each segment
+    {
+        endptr = memcpy(endptr, mp3index[i]->data, sizeof(*mp3index[i]->data)); // copy segment to end of output
+        endptr += sizeof(*mp3index[i]->data); // shift endptr past the end of last appended segment
+    }
+    
+    return output; // return ptr to beginning of 
+}
+
+/* free functions -------------------------------------------------- */
+// TODO: this
