@@ -44,3 +44,6 @@ The directory tree with pieces and the correct output file are given in the star
 *	.mp3 files begin numbering with 0
 *	each integer filename is only used once
 *	the order files are located in dirs is not necessarily in numeric order
+
+## tree `dirs`
+![dirs_tree.png](img/dirs_tree.png)

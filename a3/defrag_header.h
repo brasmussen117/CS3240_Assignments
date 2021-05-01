@@ -25,23 +25,23 @@ pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 /* #region structs ------------------------------------------------- */
 
 typedef struct mp3info {
-	int *filename;
-	char *fullpath;
+	int filename;
+	const char *fullpath;
 	void *data;
 } mp3info_t;
 
 mp3info_t **mp3_index;
 int mp3_index_length = 0;
 
+// char **directories; // TODO: remove
+
 typedef struct dir {
-	struct dirent *dir_entry;
-	char *path;
+	DIR *dir;
+	const char *path;
 } dir_t;
 
-typedef struct dirarr {
-	dir_t **arr;
-	int *length;
-} dirarr_t;
+dir_t **dir_index;
+int dir_index_length = 0;
 
 /* #endregion structs */
 

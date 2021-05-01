@@ -4,12 +4,12 @@
 void *searchdir(void *);
 void makeindex(struct dirent *, const char *);
 
-int main(int argc, char const *argv[])
+int main(int argc, char const *argv[]) // ##########################
 {
     /* check for necessary arguments ------------------------------- */
     if (argc < 3) // check for minimum args
     {
-        fprintf(stderr, "Usage: <dir to defrag> <output filename>\n");
+        fprintf(stderr, "Usage: <dir> <output_filename>\n");
         return 1;
     }
     if (argc > 3) // check that no extra args given
@@ -37,20 +37,72 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
-    /* prep -------------------------------------------------------- */
-    // dirarr_t *dir_arr = malloc(sizeof(dirarr_t));
-    // dir_arr->arr = NULL;
-    // dir_arr->length = malloc(sizeof(int));
-    // dir_arr->length = 0;
+    /* spin off new threads ---------------------------------------- */
+    dir_t *next_dir = malloc(sizeof(dir_t));
 
+    next_dir->dir = top_dir;
+    next_dir->path = top_name;
+
+    pthread_t topid;
+
+    int err = pthread_create(&topid, NULL, searchdir, next_dir);
+    
+    if (err != 0) 
+    {
+        perror("ERROR: main: could not create thread");
+        exit(EXIT_FAILURE);
+    }
+
+    fprintf(stdout, "main: initialized top thread: %lu\n", topid);
+
+    /* rejoin threads ---------------------------------------------- */
+    // for (size_t i = 0; i < thread_count; i++) // TODO: remove
+    // {
+        pthread_join(topid, NULL);
+    // }
+    
+
+	return 0;
+} // main ##########################################################
+
+/* thread func to search a dir for mp3 files */
+void *searchdir(void *arg){
+    dir_t *current = (dir_t *)arg;
+
+    if (current->dir == NULL)
+    {
+        fprintf(stderr, "searchdir: failed to cast input arg\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int localthreadcount = 0;
+    pthread_t *localtids = NULL;
+
+    // fprintf(stdout, "searchdir: name: %s; type: %i; path: %s\n", current->dir->d_name, current->dir->d_type, current->path); // TODO: remove debug
+
+    /* open file --------------------------------------------------- */
+    // DIR *new_dir = opendir(current->path); // open the file given as argument in command line // TODO: remove
+
+    // if (new_dir == NULL) // check that fopen was sucessful
+    // {
+    //     if (errno == ENOENT)
+    //     {
+    //         fprintf(stderr, "searchdir: cannot open(\"%s\"): No such file or directory\n", current->path);
+    //     }
+    //     else
+    //     {
+	// 		perror("searchdir: cannot open directory");
+    //     }
+    //     exit(EXIT_FAILURE);
+    // }
+
+    /* prep -------------------------------------------------------- */
     struct dirent *dir_entry = NULL;
     dir_t *next_dir = malloc(sizeof(dir_t));
 
-    int err; // TODO: finish this
-	
-	/* top loop ---------------------------------------------------- */
+	/* loop -------------------------------------------------------- */
 
-	while ((dir_entry = readdir(top_dir)))
+	while ((dir_entry = readdir(current->dir)))
 	{
         if ((strcmp(dir_entry->d_name, ".")==0) || // check if self or parent pointers
             (strcmp(dir_entry->d_name, "..")==0))
@@ -60,43 +112,37 @@ int main(int argc, char const *argv[])
 
 		if (dir_entry->d_type == DT_DIR) // check if dir_entry entry is subdir
 		{
-            next_dir->dir_entry = dir_entry;
-            next_dir->path = catpath(dir_entry->d_name, top_name);
-            fprintf(stdout, "main: opened subdir (\"%s\")", dir_entry->d_name);
-            // TODO: handle it
-            err = pthread_create(&tids[thread_count++], NULL, searchdir, next_dir);
+            next_dir->path = catpath(dir_entry->d_name, current->path);
+            next_dir->dir = opendir(next_dir->path);
+            
+            pthread_mutex_lock(&lock); // **************************
+            fprintf(stdout, "searchdir: tid: %lu: found subdir (\"%s\")\n", pthread_self(), next_dir->path); // TODO: remove debug
+            
+            localtids = realloc(localtids, sizeof(pthread_t) * ++localthreadcount);
+
+            int err = pthread_create(&tids[thread_count++], NULL, searchdir, next_dir);
+            
             if (err != 0) 
             {
-                perror("ERROR: main: could not create thread");
+                perror("searchdir: main: could not create thread");
                 exit(EXIT_FAILURE);
             }
-		} else if (is_mp3(dir_entry->d_name)) // check if file ext is mp3
-		{ 
-			makeindex(dir_entry, top_name);
+            pthread_mutex_unlock(&lock); // ************************
+		} 
+        else if (is_mp3(dir_entry->d_name)) // check if file ext is mp3
+		{
+            pthread_mutex_lock(&lock);
+			makeindex(dir_entry, current->path);
+            pthread_mutex_unlock(&lock);
 		} // else file was other type not used here, skip it
 	}
 
-    if (closedir(top_dir) != 0)
+    for (size_t i = 0; i < localthreadcount; i++)
     {
-        perror("ERROR: main: failed to close top_dir");
-        exit(EXIT_FAILURE);
+        pthread_join(localtids[i], NULL);
     }
 
-	return 0;
-}
-
-/* thread func to search a dir for mp3 files */
-void *searchdir(void *arg){
-    // DIR *current = (DIR *)arg;
-
-    fprintf(stdout, "searchdir: ");
-
-    /* 
-    loop through each entry
-        if entry is subdir, call self
-        if entry is mp3, call makeindex
-     */
-    return arg;
+    return NULL;
 }
 
 /* make an index entry in mp3_entries from filepath/filename 
@@ -118,7 +164,7 @@ void makeindex(struct dirent *entry, const char *filepath){
     }
 
     /* put filename to index --------------------------------------- */
-    *mp3_index[file_int]->filename = file_int;
+    mp3_index[file_int]->filename = file_int;
 
     /* get full path name and put to index ------------------------- */
     mp3_index[file_int]->fullpath = catpath(entry->d_name, filepath);
