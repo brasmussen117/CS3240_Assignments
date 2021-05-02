@@ -4,7 +4,7 @@ CFLAGS = -std=gnu11 -Wall -Werror -pthread -o
 file = defrag
 
 testdir = ./starters/dirs
-testout = ./myout.mp3
+testout = ./debug/myout.mp3
 
 input_r = < debug/input.txt
 input = $(input_r)

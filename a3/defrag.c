@@ -5,6 +5,11 @@ void *searchdir(void *);
 void makeindex(struct dirent *, const char *);
 mp3info_t **testmp3s();
 void *mp3merge(mp3info_t **, int);
+void catmp3(mp3info_t **, int , char *);
+
+/* mutex setup ----------------------------------------------------- */
+pthread_mutex_t lock_createthreads = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock_makeindex = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char const *argv[]) // #############################
 {
@@ -36,10 +41,10 @@ int main(int argc, char const *argv[]) // #############################
         {
 			perror("./defrag: cannot open directory");
         }
-        return 1;
+        exit(EXIT_FAILURE);
     }
 
-    /* spin off new threads ---------------------------------------- */
+    /* spin off top thread ----------------------------------------- */
     dir_t *next_dir = malloc(sizeof(dir_t));
 
     next_dir->dir = top_dir;
@@ -55,26 +60,36 @@ int main(int argc, char const *argv[]) // #############################
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stdout, "main: initialized top thread: %lu, dir\n", topid);
+    fprintf(stdout, "main: initialized top thread: %#lx, dir: %s\n", topid, top_name); // TODO: remove debug
 
-    /* rejoin threads ---------------------------------------------- */
-    // for (size_t i = 0; i < thread_count; i++) // TODO: remove
-    // {
-        pthread_join(topid, NULL);
-    // }
+    /* wait for top thread ----------------------------------------- */
+    pthread_join(topid, NULL);
     
     /* merge mp3s -------------------------------------------------- */
-    void *mergedmp3s = mp3merge(testmp3s(), 8); // TODO: remove debug
+    // TODO: take user input for output filename
 
-    /* create ouput file */
-    FILE *output_mp3 = fopen(DEFAULTOUTFN, "w"); // TODO: remove debug
+    // void *outputdata = testmp3s(); // TODO: remove debug
+    // catmp3(outputdata, 8, DEFAULTOUTFN); // TODO: remove debug
+    // void *mergedmp3s = mp3merge(outputdata, 8); // TODO: remove
 
-    /* write merged contents to the file */
-    if (fwrite(mergedmp3s, sizeof(*mergedmp3s), 1, output_mp3) != sizeof(*mergedmp3s))
-    {
-        perror("main: failed to write mp3 output file");
-        exit(EXIT_FAILURE);
-    }
+    // /* create ouput file */
+    // const char *outputfilename = DEFAULTOUTFN; // TODO: remove debug
+    // FILE *output_mp3 = fopen(outputfilename, "wb");
+
+    // /* write merged contents to the file */
+    // if (fwrite(mergedmp3s, sizeof(*mergedmp3s), 1, output_mp3) != sizeof(*mergedmp3s))
+    // {
+    //     perror("main: failed to write mp3 output file");
+    //     exit(EXIT_FAILURE);
+    // }
+
+    // fprintf(stdout, "main: created test output\n"); // TODO: remove debug
+
+    // if (fclose(output_mp3) != 0)
+    // {
+    //     fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", outputfilename);
+    //     exit(EXIT_FAILURE);
+    // }
 
 	return 0;
 } // main #############################################################
@@ -85,30 +100,12 @@ void *searchdir(void *arg){
 
     if (current->dir == NULL)
     {
-        fprintf(stderr, "searchdir: failed to cast input arg\n");
+        fprintf(stderr, "searchdir: dir is NULL; tid: %#lx; pid: %u\n", pthread_self(), getppid());
         exit(EXIT_FAILURE);
     }
 
     int localthreadcount = 0;
     pthread_t *localtids = NULL;
-
-    // fprintf(stdout, "searchdir: name: %s; type: %i; path: %s\n", current->dir->d_name, current->dir->d_type, current->path); // TODO: remove debug
-
-    /* open file --------------------------------------------------- */
-    // DIR *new_dir = opendir(current->path); // open the file given as argument in command line // TODO: remove
-
-    // if (new_dir == NULL) // check that fopen was sucessful
-    // {
-    //     if (errno == ENOENT)
-    //     {
-    //         fprintf(stderr, "searchdir: cannot open(\"%s\"): No such file or directory\n", current->path);
-    //     }
-    //     else
-    //     {
-	// 		perror("searchdir: cannot open directory");
-    //     }
-    //     exit(EXIT_FAILURE);
-    // }
 
     /* prep -------------------------------------------------------- */
     struct dirent *dir_entry = NULL;
@@ -128,26 +125,33 @@ void *searchdir(void *arg){
 		{
             next_dir->path = catpath(dir_entry->d_name, current->path);
             next_dir->dir = opendir(next_dir->path);
+
+            if (next_dir->dir == NULL)
+            {
+                fprintf(stderr, "searchdir: path: \"%s\"; tid: %#lx >>> ", next_dir->path, pthread_self());
+                perror("opendir failed");
+                exit(EXIT_FAILURE);
+            }
             
-            pthread_mutex_lock(&lock); // **************************
-            fprintf(stdout, "searchdir: tid: %lu: found subdir (\"%s\")\n", pthread_self(), next_dir->path); // TODO: remove debug
+            pthread_mutex_lock(&lock_createthreads); // ***************
+            fprintf(stdout, "searchdir: tid: %#lx; subdir \"%s\"\n", pthread_self(), next_dir->path); // TODO: remove debug
             
             localtids = realloc(localtids, sizeof(pthread_t) * ++localthreadcount);
 
-            int err = pthread_create(&tids[thread_count++], NULL, searchdir, next_dir);
+            int err = pthread_create(&localtids[localthreadcount - 1], NULL, searchdir, next_dir);
             
             if (err != 0) 
             {
-                perror("searchdir: main: could not create thread");
+                perror("searchdir: could not create thread");
                 exit(EXIT_FAILURE);
             }
-            pthread_mutex_unlock(&lock); // ************************
+            pthread_mutex_unlock(&lock_createthreads); // *************
 		} 
         else if (is_mp3(dir_entry->d_name)) // check if file ext is mp3
 		{
-            pthread_mutex_lock(&lock);
+            pthread_mutex_lock(&lock_makeindex); // *******************
 			makeindex(dir_entry, current->path);
-            pthread_mutex_unlock(&lock);
+            pthread_mutex_unlock(&lock_makeindex); // *****************
 		} // else file was other type not used here, skip it
 	}
 
@@ -159,9 +163,7 @@ void *searchdir(void *arg){
     return NULL;
 }
 
-/* make an index entry in mp3_entries from filepath/filename 
-    TODO: fix description
-*/
+/* make an index entry in global mp3_entries */
 void makeindex(struct dirent *entry, const char *filepath){
     /* get int value of filename ----------------------------------- */
     int file_int = get_int(entry->d_name);
@@ -187,7 +189,7 @@ void makeindex(struct dirent *entry, const char *filepath){
     mp3_index[file_int]->path = catpath(entry->d_name, filepath);
 
     /* open file contents ------------------------------------------ */
-    FILE *contents = fopen(mp3_index[file_int]->path, "r");
+    FILE *contents = fopen(mp3_index[file_int]->path, "rb");
 
     if (contents == NULL) // check that fopen was sucessful
     {
@@ -221,6 +223,22 @@ void makeindex(struct dirent *entry, const char *filepath){
         fprintf(stderr, "parser::main: file not successfully closed: (\"%s\")\n", entry->d_name);
         exit(EXIT_FAILURE);
     }
+
+    fprintf(stdout, "makeindex: tid: %#lx sucessfully created index: id: %d\n", pthread_self(), mp3_index[file_int]->filename);
+}
+
+/* get the size in bytes of target file */
+off_t getfilesize(const char *target_path)
+{
+    struct stat target_stat;
+
+    if (stat(target_path, &target_stat) == ERROR)
+    {
+        perror("getfilesize: stat failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    return target_stat.st_size;
 }
 
 /* make hard-coded mp3 data structure for testing
@@ -256,21 +274,7 @@ mp3info_t **testmp3s()
         }
 
         /* get size of contents ------------------------------------ */
-        if (fseek(contents, 0, SEEK_END) == -1)
-        {
-            perror("testmp3s: fseek failed");
-            exit(EXIT_FAILURE);
-        }
-
-        long contents_size = ftell(contents);
-
-        if (contents_size == -1)
-        {
-            perror("testmp3s: ftell failed");
-            exit(EXIT_FAILURE);
-        }
-
-        rewind(contents);
+        off_t contents_size = getfilesize(output[i]->path);
 
         /* malloc and read contents into mp3_index ---------------------- */
 
@@ -304,10 +308,10 @@ mp3info_t **testmp3s()
 void *mp3merge(mp3info_t **mp3index, int mp3indexlen)
 {
     /* get size of total file -------------------------------------- */
-    size_t totalsize = 0; // sum of the sizes of the individual segments
+    off_t totalsize = 0; // sum of the sizes of the individual segments
     for (size_t i = 0; i < mp3indexlen; i++) // loop to sum each segment
     {
-        totalsize += sizeof(*mp3index[i]->data);
+        totalsize += getfilesize(mp3index[i]->path);
     }
     
     /* setup and append data to output ----------------------------- */
@@ -323,5 +327,68 @@ void *mp3merge(mp3info_t **mp3index, int mp3indexlen)
     return output; // return ptr to beginning of 
 }
 
+/* pipeline to run cat
+
+    taken from lecture, CS3240, Spring 2021, Macreery
+*/
+static void pipeline(char *** cmd)
+{
+    int fd[2];
+    pid_t pid;
+    int fdd = 0;
+
+    while (*cmd != NULL){
+        pipe(fd);
+        if ((pid = fork()) == ERROR)
+        {
+            perror("pipeline: fork failed");
+            exit(EXIT_FAILURE);
+        }
+        else if (pid == 0)
+        {
+            dup2(fdd, STDIN_FILENO);
+            if (*(cmd + 1) != NULL)
+            {
+                dup2(fd[1], STDOUT_FILENO);
+            }
+            close(fd[0]);
+
+            execvp((*cmd)[0], *cmd);
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+            wait(NULL);
+            close(fd[1]);
+            fdd = fd[0];
+            cmd++;
+        }
+    }
+}
+
+/* concatenate mp3 segments using cat */
+void catmp3(mp3info_t **mp3index, int mp3indexlen, char *outputfilename)
+{
+    int len = mp3indexlen + 2; // index length plus 4 args
+
+    char *cat[len];
+
+    cat[0] = "cat";
+    cat[len - 1] = NULL;
+
+    for (size_t i = 0; i < mp3indexlen; i++)
+    {
+        cat[i+1] = strdup(mp3index[i]->path);
+    }
+
+    char *redirect[] = {">", outputfilename, NULL};
+
+    char **cmd[] = {cat, redirect, NULL};
+
+    pipeline(cmd);
+    
+    // TODO: free argv
+}
+
 /* free functions -------------------------------------------------- */
-// TODO: this
+// TODO: make free functions

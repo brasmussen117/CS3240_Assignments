@@ -1,4 +1,5 @@
 /* #region includes ------------------------------------------------ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,19 +10,25 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
 /* #endregion includes */
 
 /* #region global variables/const ---------------------------------- */
 #define MAXTHREADS 100
 
-#define DEFAULTOUTFN "./myout.mp3"
+#define ERROR (-1)
+
+#define DEFAULTOUTFN "./debug/myout.mp3"
 #define DEFAULTINFN "./starters/dirs"
 
 pthread_t tids[MAXTHREADS];
 
 int thread_count = 0;
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+// pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* #endregion global variables/const */
 
@@ -52,16 +59,11 @@ typedef struct mp3info
 mp3info_t **mp3_index;
 int mp3_index_length = 0;
 
-// char **directories; // TODO: remove
-
 typedef struct dir
 {
 	DIR *dir;
 	const char *path;
 } dir_t;
-
-dir_t **dir_index;
-int dir_index_length = 0;
 
 /* #endregion structs */
 
