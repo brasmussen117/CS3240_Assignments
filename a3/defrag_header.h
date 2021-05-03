@@ -53,7 +53,7 @@ typedef struct mp3info
 {
 	int filename;
 	const char *path;
-	void *data;
+	// void *data;
 } mp3info_t;
 
 mp3info_t **mp3_index;
@@ -71,6 +71,9 @@ typedef struct dir
 
 /* return extension from filename string
 	return pointer to extension if present
+
+	found on Stack Overflow: https://stackoverflow.com/a/5309508/13305483
+	author: https://stackoverflow.com/users/298479/thiefmaster
 */
 const char *get_filename_ext(const char *filename)
 {
@@ -79,10 +82,6 @@ const char *get_filename_ext(const char *filename)
 		return "";
 	return dot + 1;
 }
-/* 	citation
-	found on Stack Overflow: https://stackoverflow.com/a/5309508/13305483
-	author: https://stackoverflow.com/users/298479/thiefmaster
- */
 
 /* check if filename string contains mp3 extension */
 bool is_mp3(const char *filename)
@@ -103,7 +102,9 @@ int get_int(char *filename)
 	return file_int;
 }
 
-/* concatenate filepath/filename */
+/* concatenate filepath/filename
+	__memory allocated, must be freed__
+*/
 char *catpath(char *filename, const char *filepath)
 {
 	char buf[MAXNAMLEN];
@@ -113,6 +114,80 @@ char *catpath(char *filename, const char *filepath)
 	strcat(buf, filename); // cat the filename
 
 	return strdup(buf);
+}
+
+/* get the size in bytes of target file */
+off_t getfilesize(const char *target_path)
+{
+    struct stat target_stat;
+
+    if (stat(target_path, &target_stat) == ERROR)
+    {
+        perror("getfilesize: stat failed");
+        exit(EXIT_FAILURE);
+    }
+    
+    return target_stat.st_size;
+}
+
+/* make hard-coded mp3 data structure for testing
+    return array of mp3info_t*
+    ** memory is allocated and must be freed **
+*/
+mp3info_t **testmp3s()
+{
+    mp3info_t **output = malloc(sizeof(mp3info_t *) * 8); // 8 files in dirs starter file
+
+    for (int i = 0; i < 8; i++)
+    {
+        output[i] = malloc(sizeof(mp3info_t));
+
+        output[i]->filename = i;
+
+        output[i]->path = strdup(testmp3paths[i]);
+
+        // /* open file contents -------------------------------------- */
+        // FILE *contents = fopen(output[i]->path, "r"); TODO: remove
+
+        // if (contents == NULL) // check that fopen was sucessful
+        // {
+        //     if (errno == ENOENT)
+        //     {
+        //         fprintf(stderr, "testmp3s: cannot open(\"%s\"): No such file or directory\n", output[i]->path);
+        //     }
+        //     else
+        //     {
+        //         perror("testmp3s: cannot open contents");
+        //     }
+        //     exit(EXIT_FAILURE);
+        // }
+
+        // /* get size of contents ------------------------------------ */
+        // off_t contents_size = getfilesize(output[i]->path);
+
+        // /* malloc and read contents into mp3_index ---------------------- */
+
+        // output[i]->data = malloc(contents_size); // malloc space for newest entry
+
+        // if (fread(output[i]->data, 1, contents_size, contents) 
+        //     != contents_size)
+        // {
+        //     perror("testmp3s: cannot read file contents");
+        //     exit(EXIT_FAILURE);
+        // }
+
+        mp3_index_length++; // inc mp3_index_length
+        
+        /* close file -------------------------------------------------- */
+        // if (fclose(contents) != 0) // check file close success TODO: remove
+        // {
+        //     fprintf(stderr, "testmp3s: file not successfully closed: (\"%s\")\n", output[i]->path);
+        //     exit(EXIT_FAILURE);
+        // }
+        
+    }
+    
+    return output;
 }
 
 /* #endregion functions */
