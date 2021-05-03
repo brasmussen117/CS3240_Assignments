@@ -1,5 +1,3 @@
-/* #region includes ------------------------------------------------ */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,27 +12,17 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-/* #endregion includes */
-
 /* #region global variables/const ---------------------------------- */
-#define MAXTHREADS 100
 
 #define ERROR (-1)
 
 #define DEFAULTOUTFN "./debug/myout.mp3"
-#define DEFAULTINFN "./starters/dirs"
-
-pthread_t tids[MAXTHREADS];
-
-int thread_count = 0;
-
-// pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* #endregion global variables/const */
 
 /* #region testing vars -------------------------------------------- */
 
-const char *testmp3paths[] = {
+const char *testmp3paths[] = { 
 	"starters/dirs/home/etc/etc/0.mp3",
 	"starters/dirs/bin/bin/dev/1.mp3",
 	"starters/dirs/home/home/proc/2.mp3",
@@ -43,7 +31,7 @@ const char *testmp3paths[] = {
 	"starters/dirs/var/proc/dev/5.mp3",
 	"starters/dirs/dev/home/usr/6.mp3",
 	"starters/dirs/etc/dev/usr/7.mp3"
-};
+};// TODO: remove debug
 
 /* #endregion */
 
@@ -56,8 +44,8 @@ typedef struct mp3info
 	// void *data;
 } mp3info_t;
 
-mp3info_t **mp3_index;
-int mp3_index_length = 0;
+mp3info_t **mp3_index; // global mp3info array
+int mp3_index_length = 0; // global length of global mp3info array
 
 typedef struct dir
 {
@@ -66,6 +54,17 @@ typedef struct dir
 } dir_t;
 
 /* #endregion structs */
+
+/* #region function prototypes ------------------------------------- */
+
+void *searchdir(void *);
+void makeindex(struct dirent *, const char *);
+mp3info_t **testmp3s();
+// void *mp3merge(mp3info_t **, int); TODO: remove
+void catmp3(mp3info_t **, int , char *);
+static void catpipe(char ***, char *);
+
+/* #endregion */
 
 /* #region functions ----------------------------------------------- */
 

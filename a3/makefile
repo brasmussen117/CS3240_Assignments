@@ -23,14 +23,14 @@ clean:
 	rm -f $(testout)
 
 debug: clean
-	$(cc) -g -no-pie $(CFLAGS) $(file) $(file).c
+	$(cc) -g -no-pie -fsanitize=thread $(CFLAGS) $(file) $(file).c
 
 gdb: debug
 	gdb $(file)
 
-valgrind:
+valgrind: debug
 	rm -f $(stdout) $(stderr) $(valout)
-	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --log-file="$(valout)" ./$(file) $(input) $(output)
+	valgrind --tool=memcheck --leak-check=full --log-file="$(valout)" ./$(file) $(testdir) $(testout) $(output)
 
 valgrind_gdb:
 	valgrind --tool=memcheck --leak-check=full --vgdb-error=0 ./$(file) $(input)
