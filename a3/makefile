@@ -23,7 +23,7 @@ clean:
 	rm -f $(testout)
 
 debug: clean
-	$(cc) -g -no-pie -fsanitize=thread $(CFLAGS) $(file) $(file).c
+	$(cc) -g -no-pie $(CFLAGS) $(file) $(file).c
 
 gdb: debug
 	gdb $(file)
